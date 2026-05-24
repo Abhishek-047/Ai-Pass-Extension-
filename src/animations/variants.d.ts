@@ -1,0 +1,12 @@
+import type { Variants } from 'framer-motion';
+export declare const fadeInUp: Variants;
+export declare const fadeIn: Variants;
+export declare const slideInRight: Variants;
+export declare const scaleIn: Variants;
+export declare const staggerContainer: Variants;
+export declare const staggerItem: Variants;
+export declare const lockAnimation: Variants;
+export declare const glowPulse: Variants;
+export declare const modalOverlay: Variants;
+export declare const modalContent: Variants;
+export declare const toastVariants: Variants;
