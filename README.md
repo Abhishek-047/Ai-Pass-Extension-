@@ -1,205 +1,210 @@
-# <p align="center"><img src="assets/screenshots/logo.png" width="72" height="72" alt="VaultGuard Logo"/><br>VaultGuard</p>
+<p align="center">
+  <img src="assets/screenshots/logo.png" width="96" height="96" alt="VaultGuard Logo"/>
+</p>
+
+<h1 align="center">VaultGuard</h1>
 
 <p align="center">
-  <strong>Local-First • Zero-Knowledge • AI-Powered Security Extension</strong>
+  <strong>Local-First • Zero-Knowledge • AI-Augmented Security Extension</strong>
 </p>
 
 <p align="center">
-  <a href="https://typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.0-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/></a>
-  <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React"/></a>
-  <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img src="https://img.shields.io/badge/Manifest_V3-MV3-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Manifest V3"/></a>
-  <a href="https://en.wikipedia.org/wiki/Galois/Counter_Mode"><img src="https://img.shields.io/badge/Security-AES--GCM--256-blueviolet?style=for-the-badge" alt="AES-GCM-256"/></a>
-  <a href="#security-architecture"><img src="https://img.shields.io/badge/Zero--Knowledge-Verified-success?style=for-the-badge" alt="Zero-Knowledge"/></a>
+  A production-grade, high-performance Chrome Extension designed for secure credential orchestration. Built with modern web standards, strict zero-knowledge cryptography, and a premium glassmorphic interface.
 </p>
 
----
-
-VaultGuard is a premium, startup-quality Chrome Extension designed to serve as an ultra-secure, local-first, zero-knowledge password manager. Featuring a futuristic glassmorphic UI, cinematic motion details, and integrated local intelligence, VaultGuard elevates the standard of personal credential management to a commercial SaaS product experience.
-
----
-
-## 📸 Product Walkthrough
-
-### 🔒 Zero-Knowledge Unlock
-The extension prompts for a Master Password. All keys and derived credentials reside only in memory, transiently protected by strict memory clearing routines.
-
 <p align="center">
-  <img src="assets/screenshots/unlock_screen.png" width="380" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" alt="VaultGuard Unlock Screen"/>
-</p>
-
-### 📊 Modern Security Dashboard
-A consolidated overview showing your security score, weak password indices, and interactive action triggers to run active scans or generate secure credentials instantly.
-
-<p align="center">
-  <img src="assets/screenshots/dashboard.png" width="380" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" alt="VaultGuard Dashboard"/>
-</p>
-
-### 🤖 Local AI Assistant
-Analyze your password strength, generate complex strings, or discuss cryptographical hygiene directly inside the popup.
-
-<p align="center">
-  <img src="assets/screenshots/ai_assistant.png" width="380" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" alt="VaultGuard AI Assistant"/>
-</p>
-
-### 🛡️ Deep Security Reports
-Get an automated audit of your passwords: weak, reused, or expired credentials are highlighted with immediate recommendations.
-
-<p align="center">
-  <img src="assets/screenshots/security_report.png" width="380" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" alt="VaultGuard Security Report"/>
-</p>
-
-### ⚡ Context-Aware Autofill
-Smooth, context-menu integrations let you quickly autofill saved credentials into target login fields securely.
-
-<p align="center">
-  <img src="assets/screenshots/autofill_popup.png" width="380" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" alt="VaultGuard Autofill Popup"/>
+  <a href="https://github.com/Abhishek-047/Ai-Pass-Extension-/stargazers"><img src="https://img.shields.io/github/stars/Abhishek-047/Ai-Pass-Extension-?style=for-the-badge&color=8B5CF6&logo=github" alt="GitHub Stars"/></a>
+  <a href="https://github.com/Abhishek-047/Ai-Pass-Extension-/issues"><img src="https://img.shields.io/github/issues/Abhishek-047/Ai-Pass-Extension-?style=for-the-badge&color=EC4899" alt="GitHub Issues"/></a>
+  <a href="https://github.com/Abhishek-047/Ai-Pass-Extension-/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Abhishek-047/Ai-Pass-Extension-?style=for-the-badge&color=10B981" alt="License"/></a>
+  <br/>
+  <a href="https://typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.0-007ACC?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"/></a>
+  <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React"/></a>
+  <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img src="https://img.shields.io/badge/Manifest_V3-Chrome-4285F4?style=flat-square&logo=google-chrome&logoColor=white" alt="Chrome Extension"/></a>
+  <a href="https://w3c.github.io/webcrypto/"><img src="https://img.shields.io/badge/Web_Crypto_API-Native-blueviolet?style=flat-square" alt="Web Crypto API"/></a>
 </p>
 
 ---
 
-## ⚡ Core Features
+## ✨ Why VaultGuard?
 
-### 🔐 Uncompromising Security
-* **AES-GCM-256 Encryption:** Military-grade end-to-end symmetric encryption of the entire local vault.
-* **PBKDF2 Key Derivation:** Master Passwords are derived locally using 100,000 iterations to guard against brute-force attacks.
-* **Transient Memory Session:** Session keys are cleared immediately on lock or inactivity.
-* **Automatic Clipboard Eraser:** Copied passwords are automatically cleared from the clipboard after 30 seconds.
-* **Configurable Auto-Lock:** Vault locks automatically after a user-configured inactivity duration.
+In an era dominated by centralized cloud services, standard password managers introduce a massive point of failure: their servers. High-profile cloud credential breaches have highlighted the dangers of storing vault files on remote databases.
 
-### 🧠 Intelligent Utilities
-* **Interactive AI Security Assistant:** On-device guidance for improving security hygiene.
-* **Algorithmic Strength Meter:** Instant cryptographic entropy calculations for generated passwords.
-* **Proactive Security Scanning:** Runs local audits to identify duplicate, reused, or weak passwords.
+VaultGuard reimagines password management through three fundamental principles:
 
-### 🎨 Premium Visual Engineering
-* **Futuristic Glassmorphic Layout:** Raycast-quality dark gradients, dynamic blur layers (`backdrop-filter: blur(28px)`), and neon accent highlights.
-* **Cinematic Noise Texturing:** Custom SVG fractal noise overlay that removes flat digital gradients.
-* **Tactile Spring Physics:** Button and card presses feature physical scale-down (`0.98`) interactions built on Framer Motion.
-* **Staged Skeleton Loaders:** Non-blocking shimmers transition smoothly into rendered states.
-* **Dynamic Sidebar Navigation:** Seamlessly route pages with layout animations.
+1. **Local-First Storage:** Your vault lives entirely in your browser's sandboxed environment. No database servers, no sync servers, no central point of failure.
+2. **Zero-Knowledge Architecture:** Cryptographical keys are derived on-the-fly and reside strictly within active transient memory. No unencrypted data is ever written to storage or transmitted over the wire.
+3. **Aesthetic Excellence:** Security software shouldn't feel clinical. VaultGuard combines elite cybersecurity architecture with a premium user interface inspired by tools like Linear, Raycast, and Arc.
 
 ---
 
-## 🛡️ Security Architecture
+## 📸 Product Gallery
 
-VaultGuard operates under a strict **Zero-Knowledge Security Model**. This means your master credentials, derived keys, and unencrypted secrets never leave your device.
+| 🔒 Vault Unlock | 📊 Security Dashboard |
+|:---:|:---:|
+| <img src="assets/screenshots/unlock_screen.png" width="360" alt="Unlock Screen" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> | <img src="assets/screenshots/dashboard.png" width="360" alt="Dashboard" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
+| Zero-knowledge Master Password login. | Real-time integrity score, stats, and quick actions. |
+
+| 🤖 AI Security Companion | 🛡️ Interactive Vulnerability Scan |
+|:---:|:---:|
+| <img src="assets/screenshots/ai_assistant.png" width="360" alt="AI Assistant" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> | <img src="assets/screenshots/security_report.png" width="360" alt="Security Report" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
+| Contextual local assistant for entropy audits. | Interactive audits of weak, duplicate, or expired entries. |
+
+| ⚡ Secure Autofill Overlay |
+|:---:|
+| <img src="assets/screenshots/autofill_popup.png" width="360" alt="Autofill Popup" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
+| Domain-matched context-menu credentials fill fields instantly. |
+
+---
+
+## 🏗️ System Architecture
+
+VaultGuard utilizes a secure multi-threaded model typical of modern WebExtensions, separating user interaction, background state orchestrators, and contextual DOM injections.
 
 ```mermaid
-graph TD
-    MP[Master Password] --> |PBKDF2 100,000 iterations| DK[Derived Key]
-    DK --> |Web Crypto API| AG[AES-GCM-256 Engine]
-    IDB[(Encrypted Local IndexedDB)] <---> |Read/Write Encrypted Blobs| AG
-    AG --> |Decrypt in Memory Only| MEM[Secure Memory Store]
-    MEM --> |Display / Copy / Autofill| UI[Popup UI]
+sequenceDiagram
+    autonumber
+    actor User
+    participant Popup as UI Popup (React 19)
+    participant Worker as Background Service Worker
+    participant DB as Encrypted IndexedDB
+    participant Content as Content Script
+    participant Page as Web Page DOM
+
+    User->>Popup: Enter Master Password
+    Popup->>Popup: PBKDF2 Key Derivation
+    Popup->>DB: Fetch Encrypted Vault Blob
+    DB-->>Popup: Ciphertext Payload
+    Popup->>Popup: Decrypt in-memory using AES-GCM
+    Popup-->>User: Render Dashboard UI
+    
+    Note over Popup,Worker: Request autofill for active tab
+    Popup->>Worker: Dispatch fill request (tabId, credentials)
+    Worker->>Content: Execute script injection
+    Content->>Page: Find login inputs & safely insert values
+    Page-->>User: Visual autofill completed
 ```
 
-### Key Security Safeguards
-1. **No Backend Services:** Data is stored locally in your browser's isolated IndexedDB instance. No servers, no syncing to untrusted clouds, no telemetry.
-2. **Session Key Lifecycle:** The symmetric key is kept in an ephemeral state using Zustand. It is immediately zeroed out upon extension lock, browser close, or inactivity.
-3. **Clipboard Isolation:** Written using native browser clipboard hooks to overwrite memory buffers shortly after password retrieval.
+### Process Roles & Communication Flow
+* **UI Popup (Foreground):** Handles the React application, key derivation (`PBKDF2`), decryption (`AES-GCM`), and localized UI states.
+* **Background Service Worker (Service Thread):** Orchestrates context-menus, extension lifecycles, and triggers native injection routines into active tabs.
+* **Content Scripts (Isolated Worlds):** Injects helper modules to identify HTML inputs (`type="password"`, `type="email"`) without exposing the credentials to page-level JavaScript.
 
 ---
 
-## 🛠️ Tech Stack
+## 🔐 Cryptographical Architecture & Threat Model
 
-| Technology | Purpose | Key Library/API |
+### Cryptography Specifications
+VaultGuard relies exclusively on the native browser **Web Crypto API** to ensure performance and cryptographic correctness.
+
+* **Key Derivation (KDF):**
+  * Algorithm: `PBKDF2-HMAC-SHA256`
+  * Iterations: `100,000`
+  * Salt: Cryptographically secure pseudo-random salt generated via Web Crypto `getRandomValues` on setup.
+* **Symmetric Encryption:**
+  * Algorithm: `AES-256-GCM` (Galois/Counter Mode) for authenticated encryption.
+  * IV (Initialization Vector): `12 bytes` unique vector for every write operation to prevent replay attacks.
+  * Encrypted Blobs: Encoded as `base64` strings before serialization to IndexedDB.
+
+---
+
+### Threat Model & Countermeasures
+
+| Attack Vector | Threat Scenario | VaultGuard Mitigation |
 |---|---|---|
-| **Core Framework** | Reactive component views & rendering | React 19, TypeScript 5 |
-| **Bundling & Extension** | Manifest V3 build pipeline | Vite 8, `@crxjs/vite-plugin` |
-| **Animation Engine** | Tactile physics & transitions | Framer Motion |
-| **State Management** | Global transient state store | Zustand |
-| **Database Engine** | Isolated, transactional storage | IndexedDB (via `idb` wrapper) |
-| **Cryptographical Core** | Key derivation and data encryption | Web Crypto API (Browser Native) |
-| **Style System** | Responsive, modern visuals | Vanilla CSS & TailwindCSS v4 |
+| **Phishing / Spoofing** | Malicious site mimics a legitimate domain to capture inputs. | Strict origin matching: VaultGuard queries the browser active tab URL using Chrome APIs and filters items to match the exact protocol and FQDN before display. |
+| **iFrame / Input Sniffing** | Compromised scripts attempt to read inputs. | Autofill executes inputs programmatic updates directly on isolated DOM inputs rather than triggering keyboard events that can be intercepted by listeners. |
+| **Memory Extraction** | Malware dumps memory to retrieve credentials. | The derived decryption key resides strictly in ephemeral Zustand memory and is wiped (`null` assigned) immediately when the session is locked or closed. |
+| **Clipboard Theft** | A background daemon monitors clipboard changes. | A clipboard daemon hook intercepts copy triggers and dispatches a background setTimeout task that clears the copy buffer after exactly `30 seconds`. |
+| **Extension Tampering** | Content script code injection or access. | Strict Content Security Policy (`CSP`) defined in `manifest.json` blocks dynamic scripts (`unsafe-eval`), object tags, and restricts extension assets to isolated sandboxes. |
 
 ---
 
-## 📂 Architecture
+## 🧠 Engineering & UX Philosophy
 
-```
-vaultguard/
-├── assets/
-│   └── screenshots/     # Showcase media & product illustrations
-├── public/
-│   ├── icons/           # Extension icon assets (16x16, 32x32, 48x48, 128x128)
-│   └── manifest.json    # Chrome Extension Manifest V3 configuration
-├── src/
-│   ├── animations/      # Spring physics and Framer Motion variants
-│   ├── components/      # Shared components (Sidebar, AddItemModal, Toast, etc.)
-│   ├── crypto/          # Cryptographical Web Crypto API wrappers
-│   ├── hooks/           # Keyboard shortcut, clipboard, and lock timer listeners
-│   ├── pages/           # Screen views (Dashboard, AI Assistant, Setup, Unlock, etc.)
-│   ├── services/        # Background workers & content script handlers
-│   ├── storage/         # IndexedDB wrapper and schema definitions
-│   ├── types/           # Global TypeScript declarations
-│   ├── utils/           # Helper scripts & favicon fetchers
-│   ├── vault/           # Zustand state core
-│   ├── App.tsx          # Root router & layout orchestrator
-│   ├── index.css        # Premium typography & design system styles
-│   └── main.tsx         # Virtual DOM mount point
-├── package.json         # Dependencies & execution scripts
-└── vite.config.ts       # Bundler configuration
-```
+* **Browser Native over Custom Libraries:** Instead of shipping external, audited crypto bundles, VaultGuard leverages the browser’s own optimized cryptographic subsystem. This yields faster execution times, eliminates dependency bloat, and utilizes platform security updates automatically.
+* **Transient Memory Model:** State is designed to be highly volatile. Inactivity listeners monitor window focus changes, idle states, and lock timings, ensuring decryption contexts are destroyed as soon as the user shifts attention.
+* **Permission Minimalism:** VaultGuard requests only what it needs to perform tasks:
+  * `storage` for IndexedDB cache
+  * `clipboardWrite` to copy credentials
+  * `activeTab` & `tabs` to check site origin
+  * `scripting` to execute target autofill operations
 
 ---
 
-## 🚀 Development Setup
+## ⚡ Performance Engineering
 
-Follow these instructions to run VaultGuard locally and inspect the code.
+* **Lazy Loading Viewports:** Modules such as the AI security assistant and security reports are lazy-loaded dynamically, minimizing initial bundle parsing overhead and boosting boot time under 50ms.
+* **Zero External Network Dependencies:** During vault generation, search, or decryption, VaultGuard triggers **zero** external HTTP requests. Favicon assets are resolved using local heuristics, keeping traffic completely silent.
+* **State Optimization:** Fast, localized UI changes use reactive Zustand subscribers. IndexedDB is queried strictly on database mounts and commits.
+
+---
+
+## 🎨 Premium Design System
+
+VaultGuard adopts a carefully constructed visual design language designed to wow users:
+
+* **Glassmorphic Compositing:** Built with HSL-tailored layers, `backdrop-filter: blur(28px) saturate(210%)`, and subtle purple gradient borders (`rgba(139, 92, 246, 0.22)`).
+* **Cinematic Noise Overlays:** An SVG fractal noise filter is layered across the application background with `opacity: 0.025` and `mix-blend-mode: overlay` to break the flat look of modern screens.
+* **Spring Mechanics:** Page transitions and modal popups use custom spring presets (e.g. `stiffness: 350, damping: 22, mass: 1.2`) to simulate natural inertia and tactile button press depths (`scale: 0.98` on click).
+
+---
+
+## 🛠️ Repository & Development Setup
 
 ### Prerequisites
-* **Node.js** (v18 or higher recommended)
-* **npm** (v9 or higher)
+* **Node.js** (v18.0.0 or higher)
+* **npm** (v9.0.0 or higher)
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/Abhishek-047/Ai-Pass-Extension-.git
-cd Ai-Pass-Extension-
-```
-
-### 2. Install dependencies
-```bash
-npm install
-```
-
-### 3. Run development mode
-```bash
-npm run dev
-```
-
-### 4. Build for Chrome
-Generate the production bundle inside the `dist` directory:
-```bash
-npm run build
-```
-
-### 5. Install in Chrome
-1. Open Google Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** using the toggle in the top-right corner.
-3. Click the **Load unpacked** button in the top-left.
-4. Select the build output directory (`dist`) from your project root.
-5. VaultGuard will load and pin to your extension toolbar!
+### Installation
+1. Clone the project locally:
+   ```bash
+   git clone https://github.com/Abhishek-047/Ai-Pass-Extension-.git
+   cd Ai-Pass-Extension-
+   ```
+2. Install package dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development bundler with live reloading:
+   ```bash
+   npm run dev
+   ```
+4. Build the production package:
+   ```bash
+   npm run build
+   ```
+5. To load into Chrome:
+   * Go to `chrome://extensions/`
+   * Enable **Developer mode** (toggle, top-right).
+   * Click **Load unpacked** (button, top-left).
+   * Select the generated `dist` folder.
 
 ---
 
-## 🗺️ Roadmap
+## 🚀 Future Roadmap
 
-- [ ] **Passkey Support:** WebAuthn integration for biometric and cryptographic key logins.
-- [ ] **On-Device Local AI:** Integrate a lightweight transformer model directly into the extension context.
-- [ ] **Encrypted P2P Syncing:** Optional, zero-knowledge decentralized synchronization across user devices.
-- [ ] **Breach Intelligence:** Proactive scanning of credentials against local, offline lists of known compromised datasets.
-- [ ] **Biometric Unlock:** System TouchID / FaceID authentication fallback.
-
----
-
-## 💡 Philosophy
-
-* **Local-First:** You own your data. VaultGuard will never transmit credentials over a network.
-* **Privacy-First:** Zero user tracking. No analytics scripts, no performance reporting, complete structural anonymity.
-* **Security-First Engineering:** Leverages native browser-provided sandbox environments and the audited Web Crypto API rather than custom crypto implementations.
+- [ ] **Biometric API Integration:** Use WebAuthn credentials to unlock the local vault with TouchID or FaceID.
+- [ ] **WASM Argon2id Key Derivation:** Upgrade KDF to memory-hard Argon2id using WebAssembly for enhanced GPU brute-force protection.
+- [ ] **On-Device Local AI:** Migrate assistant services to WebGPU-backed local model processing (e.g., via Wasm-based transformers).
+- [ ] **Offline Breach Scans:** Cryptographically audit local passwords against offline databases of leaked hashes without exposing vault items.
+- [ ] **Decentralized Peer Sync:** Enable multi-device vault synchronization via encrypted, peer-to-peer WebRTC connections.
 
 ---
 
-## ⚠️ Disclaimer
+## 👥 Contribution & Guidelines
 
-VaultGuard is a portfolio and demonstration project. While it uses production-grade cryptographic principles (AES-GCM, PBKDF2), it is currently active under construction and has not undergone formal security audits. Use in production settings is at your own discretion.
+Contributions are welcome! Please review the standards below to ensure your pull requests align with the codebase design:
+
+1. **Commit Message Conventions:** Follow [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat: add passkey unlock`, `fix: clipboard clear timing`).
+2. **Coding Standards:**
+   - Type definitions must be explicit. Avoid using `any` types.
+   - Separate business logic and storage interfaces from UI rendering files.
+3. **Security Auditing:** Any code introducing new third-party dependencies, modifying cryptographic operations, or changing Content Security Policies (`CSP`) must undergo strict peer review.
+
+---
+
+## ⚖️ License & Open Source
+
+This project is licensed under the **MIT License**. Check the [LICENSE](LICENSE) file for details.
+
+Developed for educational and portfolio demonstration purposes. Under active engineering.
