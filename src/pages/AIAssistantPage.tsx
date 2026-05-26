@@ -291,7 +291,7 @@ export function AIAssistantPage() {
             className="input-field"
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Ask AI Copilot about security or passwords..."
+            placeholder="Ask AI Copilot..."
             style={{ flex: 1 }}
             disabled={isProcessing}
           />

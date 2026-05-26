@@ -28,7 +28,7 @@ type TabType = ItemType
 const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
   { id: 'login', label: 'Login', icon: <Globe size={13} /> },
   { id: 'card', label: 'Card', icon: <CreditCard size={13} /> },
-  { id: 'note', label: 'Secure Note', icon: <FileText size={13} /> },
+  { id: 'note', label: 'Note', icon: <FileText size={13} /> },
   { id: 'identity', label: 'Identity', icon: <User size={13} /> },
 ]
 

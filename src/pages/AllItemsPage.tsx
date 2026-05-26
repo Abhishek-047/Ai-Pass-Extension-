@@ -328,115 +328,125 @@ export function AllItemsPage() {
   const rest = filtered.filter(i => !i.favorite)
 
   return (
-    <div style={{ flex: 1, display: 'flex', gap: '0', overflow: 'hidden', width: '100%', height: '100%' }}>
-      {/* List Panel (240px when detail panel opens) */}
-      <div style={{
-        flex: selectedItem ? '0 0 210px' : '1',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '20px 14px',
-        gap: '14px',
-        overflow: 'hidden',
-        transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-        borderRight: selectedItem ? '1px solid rgba(139,92,246,0.08)' : 'none'
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#f1f5f9', letterSpacing: '-0.5px', fontFamily: 'Outfit' }}>
-            All Items
-          </h1>
-          <span className="badge-purple" style={{ fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px' }}>
-            {filtered.length}
-          </span>
-        </div>
+    <div style={{ flex: 1, display: 'flex', gap: '0', overflow: 'hidden', width: '100%', height: '100%', position: 'relative' }}>
+      {/* List Panel */}
+      <AnimatePresence mode="wait">
+        {!selectedItem && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '20px 16px',
+              gap: '14px',
+              overflow: 'hidden',
+              width: '100%',
+              height: '100%'
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#f1f5f9', letterSpacing: '-0.5px', fontFamily: 'Outfit' }}>
+                All Items
+              </h1>
+              <span className="badge-purple" style={{ fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px' }}>
+                {filtered.length}
+              </span>
+            </div>
 
-        {/* Dynamic Category Scrolling Row */}
-        <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }} className="scroll-horizontal">
-          {CATEGORY_FILTERS.map(f => (
-            <button
-              key={String(f.value)}
-              onClick={() => setActiveCategory(f.value)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '8px',
-                fontSize: '11px',
-                fontWeight: '700',
-                border: '1px solid',
-                borderColor: activeCategory === f.value ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.04)',
-                background: activeCategory === f.value ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.02)',
-                color: activeCategory === f.value ? '#c084fc' : '#64748b',
-                cursor: 'pointer',
-                fontFamily: 'Outfit',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+            {/* Dynamic Category Scrolling Row */}
+            <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }} className="scroll-horizontal">
+              {CATEGORY_FILTERS.map(f => (
+                <button
+                  key={String(f.value)}
+                  onClick={() => setActiveCategory(f.value)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    border: '1px solid',
+                    borderColor: activeCategory === f.value ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.04)',
+                    background: activeCategory === f.value ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.02)',
+                    color: activeCategory === f.value ? '#c084fc' : '#64748b',
+                    cursor: 'pointer',
+                    fontFamily: 'Outfit',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
-        {/* Modern Search */}
-        <div className="search-wrapper">
-          <Search size={13} className="search-icon" />
-          <input
-            className="input-field"
-            placeholder="Search vault..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
-        </div>
+            {/* Modern Search */}
+            <div className="search-wrapper">
+              <Search size={13} className="search-icon" />
+              <input
+                className="input-field"
+                placeholder="Search vault..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
 
-        {/* Scrollable list */}
-        <div className="scroll-area" style={{ flex: 1 }}>
-          {filtered.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              style={{ textAlign: 'center', padding: '40px 16px', marginTop: '20px', background: 'rgba(0,0,0,0.1)', borderRadius: '14px', border: '1px dashed rgba(139,92,246,0.15)' }}
-            >
-              <motion.div 
-                animate={{ y: [-3, 3, -3] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                style={{ fontSize: '38px', marginBottom: '14px', filter: 'drop-shadow(0 10px 15px rgba(124,58,237,0.2))' }}
-              >
-                {searchQuery ? '🔎' : '🗂️'}
-              </motion.div>
-              <h3 style={{ fontSize: '14px', color: '#f8fafc', fontWeight: '800', fontFamily: 'Outfit', marginBottom: '6px' }}>
-                {searchQuery ? 'No Matches' : 'Category Empty'}
-              </h3>
-              <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>
-                {searchQuery ? `No records found for "${searchQuery}"` : 'This section of your vault is currently empty.'}
-              </p>
-            </motion.div>
-          ) : (
-            <motion.div variants={staggerContainer} initial="initial" animate="animate" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              {favorites.length > 0 && (
-                <>
-                  <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', letterSpacing: '0.08em', padding: '4px 8px', textTransform: 'uppercase' }}>Favorites</div>
-                  {favorites.map(item => (
-                    <ItemRow key={item.id} item={item} selected={selectedItem?.id === item.id} onClick={() => setSelectedItem(item)} compact={!!selectedItem} />
-                  ))}
-                  <div style={{ margin: '6px 0' }} className="divider" />
-                </>
+            {/* Scrollable list */}
+            <div className="scroll-area" style={{ flex: 1 }}>
+              {filtered.length === 0 ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  style={{ textAlign: 'center', padding: '40px 16px', marginTop: '20px', background: 'rgba(0,0,0,0.1)', borderRadius: '14px', border: '1px dashed rgba(139,92,246,0.15)' }}
+                >
+                  <motion.div 
+                    animate={{ y: [-3, 3, -3] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ fontSize: '38px', marginBottom: '14px', filter: 'drop-shadow(0 10px 15px rgba(124,58,237,0.2))' }}
+                  >
+                    {searchQuery ? '🔎' : '🗂️'}
+                  </motion.div>
+                  <h3 style={{ fontSize: '14px', color: '#f8fafc', fontWeight: '800', fontFamily: 'Outfit', marginBottom: '6px' }}>
+                    {searchQuery ? 'No Matches' : 'Category Empty'}
+                  </h3>
+                  <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>
+                    {searchQuery ? `No records found for "${searchQuery}"` : 'This section of your vault is currently empty.'}
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div variants={staggerContainer} initial="initial" animate="animate" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {favorites.length > 0 && (
+                    <>
+                      <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', letterSpacing: '0.08em', padding: '4px 8px', textTransform: 'uppercase' }}>Favorites</div>
+                      {favorites.map(item => (
+                        <ItemRow key={item.id} item={item} selected={false} onClick={() => setSelectedItem(item)} compact={false} />
+                      ))}
+                      <div style={{ margin: '6px 0' }} className="divider" />
+                    </>
+                  )}
+                  {rest.length > 0 && (
+                    <>
+                      {favorites.length > 0 && <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', letterSpacing: '0.08em', padding: '4px 8px', textTransform: 'uppercase' }}>All Records</div>}
+                      {rest.map(item => (
+                        <ItemRow key={item.id} item={item} selected={false} onClick={() => setSelectedItem(item)} compact={false} />
+                      ))}
+                    </>
+                  )}
+                </motion.div>
               )}
-              {rest.length > 0 && (
-                <>
-                  {favorites.length > 0 && <div style={{ fontSize: '9px', fontWeight: '800', color: '#64748b', letterSpacing: '0.08em', padding: '4px 8px', textTransform: 'uppercase' }}>All Records</div>}
-                  {rest.map(item => (
-                    <ItemRow key={item.id} item={item} selected={selectedItem?.id === item.id} onClick={() => setSelectedItem(item)} compact={!!selectedItem} />
-                  ))}
-                </>
-              )}
-            </motion.div>
-          )}
-        </div>
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Dynamic Detail Panel */}
       <AnimatePresence>
         {selectedItem && (
-          <div style={{ flex: 1, padding: '20px 20px 20px 0', overflow: 'hidden' }}>
+          <div style={{ flex: 1, padding: '20px', overflow: 'hidden', width: '100%', height: '100%' }}>
             <ItemDetail item={selectedItem} onClose={() => setSelectedItem(null)} />
           </div>
         )}

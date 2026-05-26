@@ -8,6 +8,14 @@ export default defineConfig({
   plugins: [
     react(),
     crx({ manifest }),
+    {
+      name: 'clean-rollup-options',
+      configResolved(config) {
+        if (config.build?.rollupOptions && 'platform' in config.build.rollupOptions) {
+          delete (config.build.rollupOptions as any).platform
+        }
+      }
+    }
   ],
   resolve: {
     alias: {
