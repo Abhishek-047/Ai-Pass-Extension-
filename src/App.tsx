@@ -30,7 +30,7 @@ function App() {
   // Show a loading screen on start
   if (isLoading) {
     return (
-      <div className="gradient-bg" style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="gradient-bg" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -49,7 +49,7 @@ function App() {
   // Routing before vault is setup
   if (!isSetup) {
     return (
-      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
         <SetupPage />
         <ToastContainer />
       </div>
@@ -59,7 +59,7 @@ function App() {
   // Routing when vault is locked
   if (isLocked) {
     return (
-      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
         <UnlockPage />
         <ToastContainer />
       </div>
@@ -85,7 +85,7 @@ function App() {
   }
 
   return (
-    <div className="gradient-bg" style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', position: 'relative' }}>
+    <div className="gradient-bg" style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden', position: 'relative' }}>
       
       {/* Cinematic Grain/Noise Overlay */}
       <svg

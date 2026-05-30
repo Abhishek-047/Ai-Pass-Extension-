@@ -1,6 +1,7 @@
 export { 
   deriveKey, 
   deriveNewKey, 
+  importSessionKey,
   encrypt, 
   decrypt, 
   createVerifier, 

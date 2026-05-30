@@ -59,12 +59,12 @@ export function SetupPage() {
   }
 
   return (
-    <div className="gradient-bg" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', overflowY: 'auto' }}>
+    <div className="gradient-bg" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 24px', overflowY: 'auto', overflowX: 'hidden' }}>
       <motion.div
         variants={staggerContainer}
         initial="initial"
         animate="animate"
-        style={{ width: '100%', maxWidth: '350px', display: 'flex', flexDirection: 'column', gap: '26px' }}
+        style={{ width: '100%', maxWidth: '360px', display: 'flex', flexDirection: 'column', gap: '20px' }}
       >
         {/* Logo and Welcome header */}
         <motion.div variants={staggerItem} style={{ textAlign: 'center' }}>
@@ -72,13 +72,13 @@ export function SetupPage() {
             variants={glowPulse}
             animate="animate"
             style={{ 
-              width: '68px', height: '68px', 
-              borderRadius: '20px', 
+              width: '64px', height: '64px', 
+              borderRadius: '18px', 
               background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)', 
               display: 'flex', alignItems: 'center', justifyContent: 'center', 
-              margin: '0 auto 16px', 
-              boxShadow: '0 8px 32px rgba(124,58,237,0.4)',
-              border: '1px solid rgba(255,255,255,0.1)'
+              margin: '0 auto 14px', 
+              boxShadow: '0 6px 20px rgba(124,58,237,0.3)',
+              border: '1px solid rgba(255,255,255,0.08)'
             }}
           >
             <ShieldCheck size={32} color="white" />

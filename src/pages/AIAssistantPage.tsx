@@ -191,9 +191,9 @@ export function AIAssistantPage() {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%', height: '100%' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%', height: '100%', minWidth: 0 }}>
       {/* Header */}
-      <div style={{ padding: '20px 20px 0', flexShrink: 0 }}>
+      <div style={{ padding: '18px 16px 0', flexShrink: 0, overflowX: 'hidden' }}>
         <motion.div variants={staggerContainer} initial="initial" animate="animate">
           <motion.div variants={staggerItem} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(124,58,237,0.3)' }}>
@@ -253,7 +253,7 @@ export function AIAssistantPage() {
       </div>
 
       {/* Chat Messages */}
-      <div className="scroll-area" style={{ flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="scroll-area" style={{ flex: 1, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px', overflowX: 'hidden' }}>
         <AnimatePresence>
           {messages.map(msg => (
             <ChatMessage key={msg.id} message={msg} />
@@ -285,7 +285,7 @@ export function AIAssistantPage() {
       </div>
 
       {/* Input row */}
-      <div style={{ padding: '12px 20px 16px', flexShrink: 0, borderTop: '1px solid rgba(139,92,246,0.08)' }}>
+      <div style={{ padding: '10px 16px 14px', flexShrink: 0, borderTop: '1px solid rgba(139,92,246,0.08)' }}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '10px' }}>
           <input
             className="input-field"

@@ -71,15 +71,14 @@ export function UnlockPage() {
   return (
     <div className="gradient-bg" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', position: 'relative', overflow: 'hidden' }}>
 
-      {/* Cyber ambient grid/glow */}
-      <div style={{ position: 'absolute', top: '-100px', left: '-100px', width: '350px', height: '350px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%)', pointerEvents: 'none', filter: 'blur(30px)' }} />
-      <div style={{ position: 'absolute', bottom: '-80px', right: '-80px', width: '300px', height: '300px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)', pointerEvents: 'none', filter: 'blur(35px)' }} />
+      {/* Ambient glow */}
+      <div style={{ position: 'absolute', top: '-80px', left: '-80px', width: '280px', height: '280px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 70%)', pointerEvents: 'none', filter: 'blur(24px)' }} />
 
       <motion.div
         variants={staggerContainer}
         initial="initial"
         animate="animate"
-        style={{ width: '100%', maxWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '30px' }}
+        style={{ width: '100%', maxWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}
       >
         {/* Startup Sleek Logo Display */}
         <motion.div variants={staggerItem} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>

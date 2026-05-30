@@ -32,7 +32,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="scroll-area" style={{ flex: 1, padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+    <div className="scroll-area" style={{ flex: 1, padding: '20px 16px 24px', display: 'flex', flexDirection: 'column', gap: '18px', overflowX: 'hidden', width: '100%', minWidth: 0 }}>
       {/* Header */}
       <motion.div variants={staggerItem} initial="initial" animate="animate" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button

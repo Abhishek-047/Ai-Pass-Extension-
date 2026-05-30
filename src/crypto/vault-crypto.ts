@@ -146,7 +146,24 @@ export async function deriveSessionKey(vaultKeyBytes: Uint8Array): Promise<Crypt
     },
     hkdfMaterial,
     { name: ALGORITHM, length: KEY_LENGTH },
-    false, // non-extractable session key
+    true, // extractable session key
+    ['encrypt', 'decrypt']
+  )
+}
+
+/**
+ * Re-imports a session key from raw bytes.
+ */
+export async function importSessionKey(rawBytes: Uint8Array): Promise<CryptoKey> {
+  const keyBuffer = rawBytes.buffer.slice(
+    rawBytes.byteOffset,
+    rawBytes.byteOffset + rawBytes.byteLength
+  ) as ArrayBuffer
+  return crypto.subtle.importKey(
+    'raw',
+    keyBuffer,
+    { name: ALGORITHM },
+    false, // no need to be extractable again once imported
     ['encrypt', 'decrypt']
   )
 }

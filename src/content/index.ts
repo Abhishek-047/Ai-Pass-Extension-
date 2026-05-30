@@ -123,18 +123,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ─────────────────────────────────────────────
 
 function isPasswordField(el: HTMLInputElement): boolean {
-  return el.type === 'password' && isFieldVisibleAndLegit(el)
-}
-
-function isEmailUsernameField(el: HTMLInputElement): boolean {
   if (!isFieldVisibleAndLegit(el)) return false
   const type = el.type.toLowerCase()
-  const name = (el.name + el.id + el.placeholder + el.autocomplete).toLowerCase()
-  return (
-    type === 'email' ||
-    (type === 'text' &&
-      (name.includes('email') || name.includes('user') || name.includes('login') || name.includes('username')))
-  )
+  const attr = (el.name + el.id + el.placeholder + el.autocomplete + el.className).toLowerCase()
+  return type === 'password' || attr.includes('password') || attr.includes('passcode')
+}
+
+function isEmailUsernameField(el: HTMLInputElement, allInputs: HTMLInputElement[]): boolean {
+  if (!isFieldVisibleAndLegit(el)) return false
+  
+  const type = el.type.toLowerCase()
+  if (type === 'password' || type === 'checkbox' || type === 'radio' || type === 'submit' || type === 'button' || type === 'file') {
+    return false
+  }
+
+  const attr = (el.name + el.id + el.placeholder + el.autocomplete + el.getAttribute('aria-label') + el.className).toLowerCase()
+  
+  // Strong signals
+  if (type === 'email' || attr.includes('email') || attr.includes('username') || attr.includes('login') || attr.includes('user_id') || attr.includes('userid')) {
+    return true
+  }
+
+  // Weak signals
+  const isTextLike = type === 'text' || type === 'tel'
+  const hasWeakKeyword = attr.includes('user') || attr.includes('phone') || attr.includes('id') || attr.includes('acc')
+  
+  if (isTextLike && hasWeakKeyword) {
+    return true
+  }
+
+  // Sibling heuristic: If it is a text field and the very next input field is a password field in the DOM
+  if (isTextLike) {
+    const index = allInputs.indexOf(el)
+    if (index !== -1 && index < allInputs.length - 1) {
+      const nextEl = allInputs[index + 1]
+      if (nextEl && nextEl.type === 'password' && isFieldVisibleAndLegit(nextEl)) {
+        return true
+      }
+    }
+  }
+
+  return false
 }
 
 function detectLoginForm(): void {
@@ -142,7 +171,7 @@ function detectLoginForm(): void {
 
   const inputs = Array.from(document.querySelectorAll('input')) as HTMLInputElement[]
   const passwordFields = inputs.filter(isPasswordField)
-  const emailFields = inputs.filter(isEmailUsernameField)
+  const emailFields = inputs.filter((el) => isEmailUsernameField(el, inputs))
 
   if (passwordFields.length === 0) return
 
@@ -363,13 +392,20 @@ function performAutofill(credential: AutofillCredential): void {
   if (detectedFields.email && credential.username) {
     setInputValue(detectedFields.email, credential.username)
   }
+  if (detectedFields.password && credential.password) {
+    setInputValue(detectedFields.password, credential.password)
+  }
   
   // Security note: We notify background we are filling.
-  // The actual password fill can be requested securely on active page confirmation or click.
   chrome.runtime.sendMessage({
     type: 'AUTOFILL_FILL',
-    payload: credential
-  })
+    payload: {
+      id: credential.id,
+      name: credential.name,
+      username: credential.username,
+      website: credential.website
+    }
+  }).catch(() => {})
   
   removeAutofillPopup()
 }
@@ -381,11 +417,19 @@ function setInputValue(input: HTMLInputElement, value: string): void {
 
   if (nativeInputValueSetter) {
     nativeInputValueSetter.call(input, value)
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-    input.dispatchEvent(new Event('change', { bubbles: true }))
   } else {
     input.value = value
   }
+
+  // React 16+ input value tracker bypass
+  const tracker = (input as any)._valueTracker
+  if (tracker) {
+    tracker.setValue('')
+  }
+
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  input.dispatchEvent(new Event('blur', { bubbles: true }))
 }
 
 // ─────────────────────────────────────────────

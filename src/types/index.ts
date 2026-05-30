@@ -167,6 +167,7 @@ export interface AutofillCredential {
   id: string
   name: string
   username: string
+  password?: string
   website: string
   favicon?: string
 }

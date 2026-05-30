@@ -328,7 +328,7 @@ export function AllItemsPage() {
   const rest = filtered.filter(i => !i.favorite)
 
   return (
-    <div style={{ flex: 1, display: 'flex', gap: '0', overflow: 'hidden', width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{ flex: 1, display: 'flex', gap: '0', overflow: 'hidden', width: '100%', height: '100%', position: 'relative', minWidth: 0 }}>
       {/* List Panel */}
       <AnimatePresence mode="wait">
         {!selectedItem && (
@@ -384,39 +384,34 @@ export function AllItemsPage() {
               ))}
             </div>
 
-            {/* Modern Search */}
-            <div className="search-wrapper">
+            {/* Search */}
+            <div className="search-wrapper" style={{ width: '100%' }}>
               <Search size={13} className="search-icon" />
               <input
                 className="input-field"
                 placeholder="Search vault..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
               />
             </div>
 
             {/* Scrollable list */}
             <div className="scroll-area" style={{ flex: 1 }}>
               {filtered.length === 0 ? (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  style={{ textAlign: 'center', padding: '40px 16px', marginTop: '20px', background: 'rgba(0,0,0,0.1)', borderRadius: '14px', border: '1px dashed rgba(139,92,246,0.15)' }}
+                <div
+                  style={{ textAlign: 'center', padding: '40px 16px', marginTop: '20px', background: 'rgba(0,0,0,0.1)', borderRadius: '12px', border: '1px dashed rgba(139,92,246,0.15)' }}
                 >
-                  <motion.div 
-                    animate={{ y: [-3, 3, -3] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ fontSize: '38px', marginBottom: '14px', filter: 'drop-shadow(0 10px 15px rgba(124,58,237,0.2))' }}
-                  >
+                  <div style={{ fontSize: '36px', marginBottom: '12px' }}>
                     {searchQuery ? '🔎' : '🗂️'}
-                  </motion.div>
-                  <h3 style={{ fontSize: '14px', color: '#f8fafc', fontWeight: '800', fontFamily: 'Outfit', marginBottom: '6px' }}>
-                    {searchQuery ? 'No Matches' : 'Category Empty'}
+                  </div>
+                  <h3 style={{ fontSize: '14px', color: '#f8fafc', fontWeight: '700', fontFamily: 'Outfit', marginBottom: '5px' }}>
+                    {searchQuery ? 'No Matches Found' : 'No Items Here'}
                   </h3>
-                  <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '500' }}>
-                    {searchQuery ? `No records found for "${searchQuery}"` : 'This section of your vault is currently empty.'}
+                  <p style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '500', lineHeight: 1.5 }}>
+                    {searchQuery ? `No records match "${searchQuery}"` : 'This section of your vault is empty.'}
                   </p>
-                </motion.div>
+                </div>
               ) : (
                 <motion.div variants={staggerContainer} initial="initial" animate="animate" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   {favorites.length > 0 && (

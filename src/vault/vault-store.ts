@@ -15,7 +15,7 @@ import type {
 } from '@/types'
 import {
   deriveKey, deriveNewKey, createVerifier, verifyMasterPassword,
-  encrypt, decrypt, estimateEntropy
+  encrypt, decrypt, estimateEntropy, importSessionKey, arrayBufferToBase64, base64ToUint8Array
 } from '@/crypto'
 import {
   loadVaultMeta, saveVaultMeta, loadVaultItems, saveVaultItems,
@@ -215,13 +215,41 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   initialize: async () => {
     const meta = await loadVaultMeta()
     const settings = await loadSettings()
+
+    let sessionKey: CryptoKey | null = null
+    let isLocked = true
+    let currentPage: Page = meta ? 'unlock' : 'setup'
+    let items: VaultItem[] = []
+
+    try {
+      const sessionResult = await (chrome.storage.session as any)?.get('session_key')
+      const base64Key = sessionResult?.session_key as string | undefined
+      if (base64Key && meta) {
+        const keyBytes = base64ToUint8Array(base64Key)
+        sessionKey = await importSessionKey(keyBytes)
+        _sessionKey = sessionKey
+        items = await loadVaultItems()
+        isLocked = false
+        currentPage = 'dashboard'
+      }
+    } catch (err) {
+      console.error('[VaultStore] Failed to restore session:', err)
+    }
+
     set({
       isSetup: !!meta,
       meta,
       settings,
       isLoading: false,
-      currentPage: meta ? 'unlock' : 'setup',
+      currentPage,
+      isLocked,
+      items,
     })
+
+    if (!isLocked) {
+      get().computeHealthReport()
+      get().resetAutoLockTimer()
+    }
   },
 
   // ── Setup ──
@@ -241,6 +269,14 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
 
       await saveVaultMeta(meta)
       _sessionKey = key
+
+      // Export key raw bytes and save to session storage
+      const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
+      const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
+      if (chrome.storage.session) {
+        await chrome.storage.session.set({ session_key: base64Key })
+      }
+      await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
 
       set({ isSetup: true, isLocked: false, meta, currentPage: 'dashboard', items: [] })
       get().addToast({ type: 'success', title: 'Vault created!', description: 'Your secure vault is ready.' })
@@ -302,6 +338,15 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       set({ failedUnlockAttempts: 0, lockoutUntil: null })
 
       _sessionKey = key
+
+      // Export key raw bytes and save to session storage
+      const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
+      const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
+      if (chrome.storage.session) {
+        await chrome.storage.session.set({ session_key: base64Key })
+      }
+      await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
+
       const items = await loadVaultItems()
 
       // Start auto-lock timer
@@ -321,6 +366,11 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     // Explicitly null sessionKey
     _sessionKey = null
     
+    if (chrome.storage.session) {
+      chrome.storage.session.remove(['session_key']).catch(() => {})
+    }
+    chrome.runtime.sendMessage({ type: 'VAULT_LOCK' }).catch(() => {})
+
     if (_lockTimer) {
       clearTimeout(_lockTimer)
       _lockTimer = null
