@@ -35,8 +35,8 @@ export function Sidebar({ onAddItem }: SidebarProps) {
     <div style={{ width: '56px', flexShrink: 0, position: 'relative', zIndex: 20, height: '100%' }}>
       {/* Overlay expansion panel */}
       <motion.div
-        onHoverStart={() => setIsExpanded(true)}
-        onHoverEnd={() => setIsExpanded(false)}
+        onMouseEnter={() => setIsExpanded(true)}
+        onMouseLeave={() => setIsExpanded(false)}
         animate={{ width: isExpanded ? 160 : 56 }}
         transition={{ type: 'spring', stiffness: 380, damping: 36, mass: 0.7 }}
         style={{
