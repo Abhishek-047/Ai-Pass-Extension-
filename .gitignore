@@ -57,3 +57,13 @@ tmp/
 temp/
 *.tmp
 *.temp
+
+# Testing and Coverage
+coverage/
+e2e/
+playwright-report/
+test-results/
+playwright.config.ts
+vitest.config.ts
+vitest.setup.ts
+
