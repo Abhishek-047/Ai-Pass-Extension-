@@ -84,7 +84,7 @@ describe('KDF Provider', () => {
   })
 
   it('should throw for unsupported KDF algorithm', () => {
-    expect(() => createKDFProvider('argon2id' as any)).toThrow()
+    expect(() => createKDFProvider('unknown-algo' as any)).toThrow()
   })
 
   it('should derive deterministic key bytes from PBKDF2', async () => {

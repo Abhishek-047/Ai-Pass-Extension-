@@ -19,6 +19,8 @@ export interface StoredSettings {
   autofillEnabled: boolean
   showPasswordStrength: boolean
   theme: 'dark'
+  biometricSupported: boolean
+  biometricEnabled: boolean
 }
 
 const DEFAULT_SETTINGS: StoredSettings = {
@@ -27,6 +29,8 @@ const DEFAULT_SETTINGS: StoredSettings = {
   autofillEnabled: true,
   showPasswordStrength: true,
   theme: 'dark',
+  biometricSupported: false,
+  biometricEnabled: false,
 }
 
 // ─────────────────────────────────────────────

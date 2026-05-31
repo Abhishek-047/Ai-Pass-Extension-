@@ -5,11 +5,11 @@
 <h1 align="center">VaultGuard</h1>
 
 <p align="center">
-  <strong>Local-First • Zero-Knowledge • AI-Augmented Security Extension</strong>
+  <strong>Local-First • Zero-Knowledge • Hardware-Secured Password Manager</strong>
 </p>
 
 <p align="center">
-  A production-grade, high-performance Chrome Extension designed for secure credential orchestration. Built with modern web standards, strict zero-knowledge cryptography, and a premium glassmorphic interface.
+  A production-grade, high-performance Chrome Extension designed for secure credential orchestration. Built with modern web standards, strict zero-knowledge cryptography, native WebAuthn integrations, and a premium glassmorphic interface.
 </p>
 
 <p align="center">
@@ -39,12 +39,12 @@ VaultGuard reimagines password management through three fundamental principles:
 
 ## 📸 Product Gallery
 
-| 🔒 Vault Unlock | 📊 Security Dashboard |
+| 🔒 Hardware Biometric Unlock | 📊 Security Dashboard |
 |:---:|:---:|
 | <img src="assets/screenshots/unlock_screen.png" width="360" alt="Unlock Screen" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> | <img src="assets/screenshots/dashboard.png" width="360" alt="Dashboard" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
-| Zero-knowledge Master Password login. | Real-time integrity score, stats, and quick actions. |
+| Native TouchID/Windows Hello integration via WebAuthn. | Real-time integrity score, stats, and quick actions. |
 
-| 🤖 AI Security Companion | 🛡️ Interactive Vulnerability Scan |
+| 🤖 On-Device Security Companion | 🛡️ Interactive Vulnerability Scan |
 |:---:|:---:|
 | <img src="assets/screenshots/ai_assistant.png" width="360" alt="AI Assistant" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> | <img src="assets/screenshots/security_report.png" width="360" alt="Security Report" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
 | Contextual local assistant for entropy audits. | Interactive audits of weak, duplicate, or expired entries. |
@@ -70,8 +70,8 @@ sequenceDiagram
     participant Content as Content Script
     participant Page as Web Page DOM
 
-    User->>Popup: Enter Master Password
-    Popup->>Popup: PBKDF2 Key Derivation
+    User->>Popup: WebAuthn TouchID / Enter Master Password
+    Popup->>Popup: Argon2id KDF / WebAuthn Unwrapping
     Popup->>DB: Fetch Encrypted Vault Blob
     DB-->>Popup: Ciphertext Payload
     Popup->>Popup: Decrypt in-memory using AES-GCM
@@ -85,7 +85,7 @@ sequenceDiagram
 ```
 
 ### Process Roles & Communication Flow
-* **UI Popup (Foreground):** Handles the React application, key derivation (`PBKDF2`), decryption (`AES-GCM`), and localized UI states.
+* **UI Popup (Foreground):** Handles the React application, key derivation (`Argon2id`), WebAuthn `navigator.credentials`, decryption (`AES-GCM`), and localized UI states.
 * **Background Service Worker (Service Thread):** Orchestrates context-menus, extension lifecycles, and triggers native injection routines into active tabs.
 * **Content Scripts (Isolated Worlds):** Injects helper modules to identify HTML inputs (`type="password"`, `type="email"`) without exposing the credentials to page-level JavaScript.
 
@@ -94,16 +94,18 @@ sequenceDiagram
 ## 🔐 Cryptographical Architecture & Threat Model
 
 ### Cryptography Specifications
-VaultGuard relies exclusively on the native browser **Web Crypto API** to ensure performance and cryptographic correctness.
+VaultGuard relies exclusively on the native browser **Web Crypto API** and **WebAuthn** to ensure performance and cryptographic correctness.
 
 * **Key Derivation (KDF):**
-  * Algorithm: `PBKDF2-HMAC-SHA256`
-  * Iterations: `100,000`
+  * Algorithm: `Argon2id` (WebAssembly-accelerated)
+  * Memory Cost: `64 MB`
   * Salt: Cryptographically secure pseudo-random salt generated via Web Crypto `getRandomValues` on setup.
+* **Hardware Biometrics:**
+  * Uses WebAuthn **Discoverable Credentials (Passkeys)** to store a vault-wrapping key securely in the OS Secure Enclave / TPM.
+  * Your Master Password is NEVER bypassed; the vault remains perfectly zero-knowledge.
 * **Symmetric Encryption:**
   * Algorithm: `AES-256-GCM` (Galois/Counter Mode) for authenticated encryption.
   * IV (Initialization Vector): `12 bytes` unique vector for every write operation to prevent replay attacks.
-  * Encrypted Blobs: Encoded as `base64` strings before serialization to IndexedDB.
 
 ---
 
@@ -114,28 +116,7 @@ VaultGuard relies exclusively on the native browser **Web Crypto API** to ensure
 | **Phishing / Spoofing** | Malicious site mimics a legitimate domain to capture inputs. | Strict origin matching: VaultGuard queries the browser active tab URL using Chrome APIs and filters items to match the exact protocol and FQDN before display. |
 | **iFrame / Input Sniffing** | Compromised scripts attempt to read inputs. | Autofill executes inputs programmatic updates directly on isolated DOM inputs rather than triggering keyboard events that can be intercepted by listeners. |
 | **Memory Extraction** | Malware dumps memory to retrieve credentials. | The derived decryption key resides strictly in ephemeral Zustand memory and is wiped (`null` assigned) immediately when the session is locked or closed. |
-| **Clipboard Theft** | A background daemon monitors clipboard changes. | A clipboard daemon hook intercepts copy triggers and dispatches a background setTimeout task that clears the copy buffer after exactly `30 seconds`. |
-| **Extension Tampering** | Content script code injection or access. | Strict Content Security Policy (`CSP`) defined in `manifest.json` blocks dynamic scripts (`unsafe-eval`), object tags, and restricts extension assets to isolated sandboxes. |
-
----
-
-## 🧠 Engineering & UX Philosophy
-
-* **Browser Native over Custom Libraries:** Instead of shipping external, audited crypto bundles, VaultGuard leverages the browser’s own optimized cryptographic subsystem. This yields faster execution times, eliminates dependency bloat, and utilizes platform security updates automatically.
-* **Transient Memory Model:** State is designed to be highly volatile. Inactivity listeners monitor window focus changes, idle states, and lock timings, ensuring decryption contexts are destroyed as soon as the user shifts attention.
-* **Permission Minimalism:** VaultGuard requests only what it needs to perform tasks:
-  * `storage` for IndexedDB cache
-  * `clipboardWrite` to copy credentials
-  * `activeTab` & `tabs` to check site origin
-  * `scripting` to execute target autofill operations
-
----
-
-## ⚡ Performance Engineering
-
-* **Lazy Loading Viewports:** Modules such as the AI security assistant and security reports are lazy-loaded dynamically, minimizing initial bundle parsing overhead and boosting boot time under 50ms.
-* **Zero External Network Dependencies:** During vault generation, search, or decryption, VaultGuard triggers **zero** external HTTP requests. Favicon assets are resolved using local heuristics, keeping traffic completely silent.
-* **State Optimization:** Fast, localized UI changes use reactive Zustand subscribers. IndexedDB is queried strictly on database mounts and commits.
+| **Device Theft** | Physical attacker attempts to extract AES keys from disk. | Vault keys are encrypted and stored inside OS-level secure enclaves via WebAuthn, strictly requiring a live user biometric challenge (TouchID/FaceID) to decrypt. |
 
 ---
 
@@ -178,16 +159,6 @@ VaultGuard adopts a carefully constructed visual design language designed to wow
    * Enable **Developer mode** (toggle, top-right).
    * Click **Load unpacked** (button, top-left).
    * Select the generated `dist` folder.
-
----
-
-## 🚀 Future Roadmap
-
-- [ ] **Biometric API Integration:** Use WebAuthn credentials to unlock the local vault with TouchID or FaceID.
-- [ ] **WASM Argon2id Key Derivation:** Upgrade KDF to memory-hard Argon2id using WebAssembly for enhanced GPU brute-force protection.
-- [ ] **On-Device Local AI:** Migrate assistant services to WebGPU-backed local model processing (e.g., via Wasm-based transformers).
-- [ ] **Offline Breach Scans:** Cryptographically audit local passwords against offline databases of leaked hashes without exposing vault items.
-- [ ] **Decentralized Peer Sync:** Enable multi-device vault synchronization via encrypted, peer-to-peer WebRTC connections.
 
 ---
 

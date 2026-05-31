@@ -83,6 +83,12 @@ interface VaultStore {
   // Health
   computeHealthReport: () => void
 
+  // Biometrics
+  checkBiometricCapability: () => Promise<void>
+  enrollBiometric: () => Promise<boolean>
+  unlockWithBiometric: () => Promise<boolean>
+  disableBiometric: () => Promise<void>
+
   // Wipe
   wipeEverything: () => Promise<void>
 }
@@ -213,6 +219,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
 
   // ── Initialize ──
   initialize: async () => {
+    performance.mark('load-start')
     const meta = await loadVaultMeta()
     const settings = await loadSettings()
 
@@ -252,17 +259,27 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       items,
     })
 
+    // Biometric capability detection
+    void get().checkBiometricCapability()
+
     if (!isLocked) {
       get().computeHealthReport()
       get().resetAutoLockTimer()
     }
+
+    performance.mark('load-end')
+    const measure = performance.measure('load-latency', 'load-start', 'load-end')
+    console.log(`[VaultGuard Performance] Vault load latency: ${measure.duration.toFixed(2)}ms`)
   },
 
   // ── Setup ──
   setupMasterPassword: async (password: string) => {
     try {
-      const { key, salt, kdf } = await deriveNewKey(password, 'pbkdf2')
+      performance.mark('setup-start')
+      const { key, salt, kdf } = await deriveNewKey(password, 'argon2id')
       const verifierData = await createVerifier(key)
+      performance.mark('setup-end')
+      performance.measure('setup-latency', 'setup-start', 'setup-end')
 
       const meta: VaultMeta = {
         salt,
@@ -319,7 +336,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     }
 
     try {
-      const key = await deriveKey(password, meta.salt, meta.kdf)
+      performance.mark('unlock-start')
+      let key = await deriveKey(password, meta.salt, meta.kdf)
 
       // Verify master password by decrypting the stored verifier blob
       const verified = await verifyMasterPassword(
@@ -351,10 +369,69 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       // ✅ Password correct — reset failure counters
       _failedAttempts = 0
       _lockoutTime = null
-      _sessionKey = key
 
-      // Load items and update UI state IMMEDIATELY — don't block on session persistence
-      const items = await loadVaultItems()
+      // Load items
+      let items = await loadVaultItems()
+
+      // ── Argon2id Migration ──
+      if (meta.kdf.algorithm === 'pbkdf2') {
+        try {
+          console.log('[VaultStore] Migrating vault to Argon2id...')
+          const newDerived = await deriveNewKey(password, 'argon2id')
+          const newSessionKey = newDerived.key
+          
+          // Decrypt and re-encrypt all items
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i]
+            if (item.type === 'login') {
+              const loginItem = item as LoginItem
+              const plainPwd = await decrypt({ ciphertext: loginItem.encryptedPassword, iv: loginItem.iv }, key)
+              const encPwd = await encrypt(plainPwd, newSessionKey)
+              items[i] = { ...loginItem, encryptedPassword: encPwd.ciphertext, iv: encPwd.iv, updatedAt: Date.now() }
+            } else if (item.type === 'card') {
+              const cardItem = item as CardItem
+              const plainNum = await decrypt({ ciphertext: cardItem.encryptedNumber, iv: cardItem.ivNumber }, key)
+              const plainCvv = await decrypt({ ciphertext: cardItem.encryptedCvv, iv: cardItem.ivCvv }, key)
+              const encNum = await encrypt(plainNum, newSessionKey)
+              const encCvv = await encrypt(plainCvv, newSessionKey)
+              items[i] = { ...cardItem, encryptedNumber: encNum.ciphertext, ivNumber: encNum.iv, encryptedCvv: encCvv.ciphertext, ivCvv: encCvv.iv, updatedAt: Date.now() }
+            } else if (item.type === 'note') {
+              const noteItem = item as NoteItem
+              const plainNote = await decrypt({ ciphertext: noteItem.encryptedContent, iv: noteItem.ivContent }, key)
+              const encNote = await encrypt(plainNote, newSessionKey)
+              items[i] = { ...noteItem, encryptedContent: encNote.ciphertext, ivContent: encNote.iv, updatedAt: Date.now() }
+            }
+          }
+
+          // Create new verifier
+          const newVerifier = await createVerifier(newSessionKey)
+          const newMeta: VaultMeta = {
+            ...meta,
+            salt: newDerived.salt,
+            kdf: newDerived.kdf,
+            verifier: newVerifier.ciphertext,
+            verifierIv: newVerifier.iv,
+          }
+
+          // Save new meta and items
+          await saveVaultItems(items)
+          await saveVaultMeta(newMeta)
+          
+          // Switch to new key and meta
+          key = newSessionKey
+          set({ meta: newMeta })
+          console.log('[VaultStore] Argon2id migration complete.')
+        } catch (migErr) {
+          console.error('[VaultStore] Argon2id migration failed, falling back to PBKDF2:', migErr)
+        }
+      }
+
+      _sessionKey = key
+      
+      performance.mark('unlock-end')
+      performance.measure('unlock-latency', 'unlock-start', 'unlock-end')
+      
+      // Update UI state IMMEDIATELY — don't block on session persistence
       set({ isLocked: false, items, currentPage: 'dashboard', failedUnlockAttempts: 0, lockoutUntil: null })
       get().resetAutoLockTimer()
       get().computeHealthReport()
@@ -517,7 +594,13 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   navigate: (page) => set({ currentPage: page }),
 
   // ── Search ──
-  setSearchQuery: (q) => set({ searchQuery: q }),
+  setSearchQuery: (q) => {
+    performance.mark('search-start')
+    set({ searchQuery: q })
+    performance.mark('search-end')
+    const measure = performance.measure('search-latency', 'search-start', 'search-end')
+    console.log(`[VaultGuard Performance] Search latency: ${measure.duration.toFixed(2)}ms`)
+  },
   setActiveCategory: (cat) => set({ activeCategory: cat }),
 
   // ── Settings ──
@@ -544,6 +627,181 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     buildHealthReport(items, (item) => get().getDecryptedPassword(item))
       .then(report => set({ healthReport: report }))
       .catch(() => {})
+  },
+
+  // ── Biometrics ──
+  checkBiometricCapability: async () => {
+    try {
+      if (
+        window.PublicKeyCredential &&
+        typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'
+      ) {
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        const currentSettings = get().settings
+        if (currentSettings && currentSettings.biometricSupported !== available) {
+          get().updateSettings({ biometricSupported: available })
+        }
+      }
+    } catch {
+      // Ignored
+    }
+  },
+
+  enrollBiometric: async () => {
+    const { meta } = get()
+    if (!meta || !_sessionKey) return false
+
+    try {
+      performance.mark('biometric-enroll-start')
+      
+      // 1. Generate random 32-byte biometric key
+      const biometricKey = crypto.getRandomValues(new Uint8Array(32))
+
+      // 2. Create WebAuthn credential tied to platform authenticator
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          rp: { name: 'VaultGuard', id: window.location.hostname },
+          user: {
+            id: biometricKey, // Important: store our key in userHandle
+            name: 'vaultguard-user',
+            displayName: 'VaultGuard Local User'
+          },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform',
+            userVerification: 'required',
+            residentKey: 'required'
+          },
+          timeout: 60000
+        }
+      }) as PublicKeyCredential
+
+      if (!credential) throw new Error('Biometric creation failed or cancelled.')
+
+      // 3. Wrap current session key using biometric key
+      const rawSessionKeyBytes = await crypto.subtle.exportKey('raw', _sessionKey)
+      const sessionKeyBase64 = arrayBufferToBase64(new Uint8Array(rawSessionKeyBytes))
+      
+      const biometricCryptoKey = await crypto.subtle.importKey(
+        'raw',
+        biometricKey.buffer,
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt']
+      )
+      
+      const wrapped = await encrypt(sessionKeyBase64, biometricCryptoKey)
+
+      // 4. Save to VaultMeta
+      const newMeta = {
+        ...meta,
+        biometric: {
+          credentialId: arrayBufferToBase64(new Uint8Array(credential.rawId)),
+          wrappedSessionKey: wrapped.ciphertext,
+          iv: wrapped.iv,
+          enrolledAt: Date.now()
+        }
+      }
+
+      await saveVaultMeta(newMeta)
+      await get().updateSettings({ biometricEnabled: true })
+      set({ meta: newMeta })
+      
+      performance.mark('biometric-enroll-end')
+      performance.measure('biometric-enroll-latency', 'biometric-enroll-start', 'biometric-enroll-end')
+      
+      get().addToast({ type: 'success', title: 'Biometric Unlock Enabled' })
+      return true
+    } catch (err) {
+      console.error('[VaultStore] Biometric enrollment failed:', err)
+      get().addToast({ type: 'error', title: 'Enrollment failed', description: 'Could not register biometric credential.' })
+      return false
+    }
+  },
+
+  unlockWithBiometric: async () => {
+    const { meta } = get()
+    if (!meta || !meta.biometric) return false
+
+    try {
+      performance.mark('biometric-unlock-start')
+      
+      const credentialIdBytes = base64ToUint8Array(meta.biometric.credentialId)
+      
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          allowCredentials: [{
+            type: 'public-key',
+            id: credentialIdBytes as unknown as BufferSource
+          }],
+          userVerification: 'required',
+          timeout: 60000
+        }
+      }) as PublicKeyCredential
+
+      if (!assertion || !(assertion as any).response.userHandle) {
+        throw new Error('No user handle returned from authenticator.')
+      }
+
+      const biometricKey = new Uint8Array((assertion as any).response.userHandle)
+
+      // Decrypt session key
+      const biometricCryptoKey = await crypto.subtle.importKey(
+        'raw',
+        biometricKey.buffer,
+        { name: 'AES-GCM' },
+        false,
+        ['decrypt']
+      )
+      
+      const sessionKeyBase64 = await decrypt(
+        { ciphertext: meta.biometric.wrappedSessionKey, iv: meta.biometric.iv },
+        biometricCryptoKey
+      )
+      
+      const sessionKeyBytes = base64ToUint8Array(sessionKeyBase64)
+      _sessionKey = await importSessionKey(sessionKeyBytes)
+      
+      // Load items & state
+      const items = await loadVaultItems()
+      
+      performance.mark('biometric-unlock-end')
+      performance.measure('biometric-unlock-latency', 'biometric-unlock-start', 'biometric-unlock-end')
+
+      set({ isLocked: false, items, currentPage: 'dashboard', failedUnlockAttempts: 0, lockoutUntil: null })
+      get().resetAutoLockTimer()
+      get().computeHealthReport()
+
+      // Persist to session storage
+      void (async () => {
+        try {
+          if (chrome.storage.session) {
+            await (chrome.storage.session as any).set({ session_key: sessionKeyBase64 })
+          }
+          chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: sessionKeyBase64 }).catch(() => {})
+        } catch (e) {
+          // ignore
+        }
+      })()
+
+      return true
+    } catch (err) {
+      console.error('[VaultStore] Biometric unlock failed:', err)
+      return false
+    }
+  },
+
+  disableBiometric: async () => {
+    const { meta } = get()
+    if (!meta) return
+    const newMeta = { ...meta }
+    delete newMeta.biometric
+    await saveVaultMeta(newMeta)
+    await get().updateSettings({ biometricEnabled: false })
+    set({ meta: newMeta })
+    get().addToast({ type: 'success', title: 'Biometrics disabled' })
   },
 
   // ── Wipe ──

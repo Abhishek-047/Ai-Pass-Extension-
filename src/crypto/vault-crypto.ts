@@ -1,17 +1,19 @@
 /**
  * VaultGuard Crypto Layer
- * 
+ *
  * Implements AES-GCM encryption with KDF abstraction and session-key architecture.
+ * Supports PBKDF2 (legacy) and Argon2id (default) key derivation via hash-wasm.
  * ALL crypto operations happen locally using the Web Crypto API.
  * Raw passwords and vault keys are NEVER sent to any external service.
- * 
- * Security Upgrades:
- * 1. Argon2id abstraction layer with PBKDF2 provider.
+ *
+ * Security:
+ * 1. Argon2id default KDF with PBKDF2 backward-compat provider.
  * 2. Session Key Architecture (Master Password -> Derived Vault Key -> Temporary In-Memory Session Key).
  * 3. Secure zeroing of temporary buffers to clean up memory before GC.
  */
 
 import type { DerivedKeyResult, EncryptedData, KDFAlgorithm, KDFParams } from '@/types'
+import { argon2id } from 'hash-wasm'
 
 // ─────────────────────────────────────────────
 // Constants
@@ -42,6 +44,23 @@ export function base64ToUint8Array(base64: string): Uint8Array {
     bytes[i] = binary.charCodeAt(i)
   }
   return bytes
+}
+
+// ─────────────────────────────────────────────
+// WebAuthn Utilities: base64url ↔ Uint8Array
+// ─────────────────────────────────────────────
+
+export function arrayBufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
+  const base64 = arrayBufferToBase64(buffer)
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+export function base64UrlToArrayBuffer(base64url: string): Uint8Array {
+  let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+  while (base64.length % 4) {
+    base64 += '='
+  }
+  return base64ToUint8Array(base64)
 }
 
 // ─────────────────────────────────────────────
@@ -107,12 +126,39 @@ export class Pbkdf2Provider implements KDFProvider {
   }
 }
 
+export class Argon2idProvider implements KDFProvider {
+  algorithm: KDFAlgorithm = 'argon2id'
+
+  async deriveKeyBytes(password: string, saltBytes: Uint8Array, params: KDFParams): Promise<Uint8Array> {
+    const memorySize = params.memoryCost || 65536 // 64 MB
+    const iterations = params.timeCost || 3
+    const parallelism = params.parallelism || 1
+
+    try {
+      const derived = await argon2id({
+        password,
+        salt: saltBytes,
+        parallelism,
+        iterations,
+        memorySize,
+        hashLength: 32, // 256 bits
+        outputType: 'binary',
+      })
+      return derived
+    } finally {
+      // hash-wasm internal buffers are out of our control, but it handles its own zeroing
+    }
+  }
+}
+
 export function createKDFProvider(algorithm: KDFAlgorithm): KDFProvider {
   if (algorithm === 'pbkdf2') {
     return new Pbkdf2Provider()
   }
-  // Future Argon2id WASM integration point
-  throw new Error(`KDF algorithm ${algorithm} is not supported yet (abstraction layer is ready).`)
+  if (algorithm === 'argon2id') {
+    return new Argon2idProvider()
+  }
+  throw new Error(`KDF algorithm ${algorithm} is not supported.`)
 }
 
 // ─────────────────────────────────────────────

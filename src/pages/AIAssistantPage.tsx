@@ -132,7 +132,7 @@ function ChatMessage({ message }: { message: AIMessage }) {
 const WELCOME_MESSAGE: AIMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: '👋 Hello! I am your VaultGuard security copilot.\n\nI operate 100% locally in your browser to help you:\n• Generate cryptographically strong keys\n• Analyze domains for phishing risk\n• Review security guidelines\n\nHow may I secure your vault today?',
+  content: '👋 Hello! I am your VaultGuard security assistant.\n\nI operate 100% locally in your browser to help you:\n• Generate cryptographically strong passwords\n• Analyze domains for phishing risk\n• Review security guidelines\n\nHow may I help secure your vault today?',
   timestamp: Date.now(),
 }
 
@@ -204,7 +204,7 @@ export function AIAssistantPage() {
                 AI Assistant
                 <span className="badge-purple" style={{ fontSize: '9px', fontWeight: '800', padding: '1px 6px', borderRadius: '5px' }}>Copilot</span>
               </h1>
-              <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Local LLM Processing — no external API calls</p>
+              <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>On-device processing — no external API calls</p>
             </div>
           </motion.div>
 

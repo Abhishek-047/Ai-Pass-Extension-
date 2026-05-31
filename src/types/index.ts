@@ -80,10 +80,17 @@ export interface KDFParams {
   // PBKDF2 params
   iterations?: number
   hash?: string
-  // Argon2id params (future)
+  // Argon2id params
   memoryCost?: number
   timeCost?: number
   parallelism?: number
+}
+
+export interface BiometricMeta {
+  credentialId: string       // base64url encoded
+  wrappedSessionKey: string  // ciphertext (base64)
+  iv: string                 // base64
+  enrolledAt: number
 }
 
 export interface VaultMeta {
@@ -93,6 +100,7 @@ export interface VaultMeta {
   createdAt: number
   version: number
   kdf: KDFParams        // which algorithm was used to derive the vault key
+  biometric?: BiometricMeta // WebAuthn wrapped session key
 }
 
 export interface VaultState {

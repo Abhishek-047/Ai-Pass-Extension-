@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Iframe Attack</title>
+</head>
+<body>
+  <h2>Safe Page</h2>
+  <p>This is the trusted origin.</p>
+  
+  <!-- The iframe would typically load from attacker.com -->
+  <iframe src="http://127.0.0.1:3000/iframe-content.html" width="400" height="300" style="border: 1px solid red"></iframe>
+</body>
+</html>

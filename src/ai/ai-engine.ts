@@ -1,19 +1,19 @@
 /**
- * VaultGuard Local AI Engine
- * 
- * ALL AI logic runs locally — NO passwords or secrets sent to any API.
- * AI only receives: context labels, domain names, metadata.
- * 
+ * VaultGuard Local Security Assistant
+ *
+ * ALL logic runs locally — no passwords or secrets sent to any external API.
+ * The assistant only receives: context labels, domain names, metadata.
+ *
  * Features:
  * - Smart password generation (context-aware)
- * - Password strength explanation
+ * - Password strength analysis
  * - Phishing/suspicious domain detection
  * - Vault health recommendations
  * - Security tips
  */
 
 import type {
-  GeneratedPassword, PasswordGeneratorConfig, DomainRiskResult, PasswordAnalysis
+  GeneratedPassword, PasswordGeneratorConfig, DomainRiskResult
 } from '@/types'
 import { estimateEntropy } from '@/crypto'
 
@@ -93,28 +93,6 @@ export function generatePassword(config: PasswordGeneratorConfig): GeneratedPass
 }
 
 // ─────────────────────────────────────────────
-// Password Strength Explainer
-// ─────────────────────────────────────────────
-
-export function explainPasswordStrength(analysis: PasswordAnalysis): string {
-  const { score, issues, entropy } = analysis
-
-  if (score >= 80) {
-    return `🔐 Excellent password! ${Math.round(entropy)} bits of entropy makes it virtually uncrackable. This password would take billions of years to brute-force.`
-  }
-  if (score >= 60) {
-    return `✅ Strong password with ${Math.round(entropy)} bits of entropy. Minor improvements possible: ${issues[0] ?? 'none needed'}.`
-  }
-  if (score >= 40) {
-    return `⚠️ Fair password. Issues found: ${issues.join(', ')}. Adding length and symbols significantly improves security.`
-  }
-  if (score >= 20) {
-    return `❌ Weak password (${Math.round(entropy)} bits entropy). Critical issues: ${issues.join(', ')}. This could be cracked in minutes.`
-  }
-  return `🚨 Very weak password. ${issues.join(', ')}. This offers almost no security. Replace immediately.`
-}
-
-// ─────────────────────────────────────────────
 // Phishing / Suspicious Domain Detector
 // ─────────────────────────────────────────────
 
@@ -149,38 +127,32 @@ export function analyzeDomain(domain: string): DomainRiskResult {
   const reasons: string[] = []
   let riskLevel: DomainRiskResult['riskLevel'] = 'safe'
 
-  // Check suspicious TLDs
   if (SUSPICIOUS_TLDS.some(tld => clean.endsWith(tld))) {
     reasons.push(`Suspicious TLD (${SUSPICIOUS_TLDS.find(tld => clean.endsWith(tld))})`)
     riskLevel = 'high'
   }
 
-  // Check leet-speak impersonation
   if (hasBrandImpersonation(clean)) {
     reasons.push('May be impersonating a known brand')
     riskLevel = 'critical'
   }
 
-  // Check for IP address
   if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(clean)) {
     reasons.push('Domain is an IP address (unusual)')
     riskLevel = riskLevel === 'critical' ? 'critical' : 'medium'
   }
 
-  // Excessive subdomains
   const parts = clean.split('.')
   if (parts.length > 4) {
     reasons.push('Excessive subdomain depth')
     riskLevel = riskLevel === 'safe' ? 'low' : riskLevel
   }
 
-  // Very long domain
   if (clean.length > 50) {
     reasons.push('Unusually long domain name')
     riskLevel = riskLevel === 'safe' ? 'low' : riskLevel
   }
 
-  // Hyphens suggesting spoofing
   const hyphens = (clean.match(/-/g) ?? []).length
   if (hyphens >= 3) {
     reasons.push('Multiple hyphens (common in phishing domains)')
@@ -205,7 +177,7 @@ function getDomainFromString(url: string): string {
 }
 
 // ─────────────────────────────────────────────
-// AI Chat Engine
+// Security Assistant Engine
 // ─────────────────────────────────────────────
 
 export interface ChatContext {
@@ -295,16 +267,16 @@ export function processAIMessage(
 
   // Explain concepts
   if (msg.includes('encrypt') || msg.includes('aes') || msg.includes('how.*work')) {
-    return { response: "🔒 **How VaultGuard Encrypts Your Data**\n\nYour master password → PBKDF2 key derivation (100,000 iterations) → AES-GCM 256-bit encryption key.\n\nEach password is encrypted with a unique random IV before storage. Even if someone steals your storage, they get encrypted garbage without your master password.\n\nYour master password is NEVER stored — only a cryptographic verifier." }
+    return { response: "🔒 **How VaultGuard Encrypts Your Data**\n\nYour master password → Argon2id key derivation (64MB memory, 3 iterations) → AES-GCM 256-bit encryption key.\n\nEach password is encrypted with a unique random IV before storage. Even if someone steals your storage, they get encrypted garbage without your master password.\n\nYour master password is NEVER stored — only a cryptographic verifier." }
   }
 
   // Greetings
   if (msg.includes('hello') || msg.includes('hi') || msg.includes('hey')) {
-    return { response: "👋 Hi! I'm VaultGuard's AI security assistant.\n\nI can help you:\n• Generate strong passwords\n• Check if a domain is suspicious\n• Audit your vault health\n• Explain security concepts\n\nWhat can I help you with?" }
+    return { response: "👋 Hi! I'm VaultGuard's security assistant.\n\nI can help you:\n• Generate strong passwords\n• Check if a domain is suspicious\n• Audit your vault health\n• Explain security concepts\n\nWhat can I help you with?" }
   }
 
   // Default
   return {
-    response: `🤖 I can help you with:\n\n• **Generate password** — "Generate a banking password"\n• **Check domain** — "Is paypa1.com safe?"\n• **Vault health** — "Audit my vault"\n• **Security tips** — "Give me a tip"\n• **Explain security** — "How does encryption work?"\n\nWhat would you like to know?`
+    response: `I can help you with:\n\n• **Generate password** — "Generate a banking password"\n• **Check domain** — "Is paypa1.com safe?"\n• **Vault health** — "Audit my vault"\n• **Security tips** — "Give me a tip"\n• **Explain security** — "How does encryption work?"\n\nWhat would you like to know?`
   }
 }

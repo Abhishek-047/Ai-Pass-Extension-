@@ -1,18 +1,4 @@
-import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-
-export function getDomainFromUrl(url: string): string {
-  try {
-    const u = new URL(url.startsWith('http') ? url : `https://${url}`)
-    return u.hostname.replace('www.', '')
-  } catch {
-    return url
-  }
-}
 
 export function getFaviconUrl(website: string): string {
   const domain = getDomainFromUrl(website)
@@ -38,10 +24,6 @@ export function timeAgo(timestamp: number): string {
   if (hours > 0) return `${hours}h ago`
   if (minutes > 0) return `${minutes}m ago`
   return 'Just now'
-}
-
-export function maskPassword(password: string): string {
-  return '•'.repeat(Math.min(password.length, 16))
 }
 
 /** Copy text to clipboard and optionally auto-clear after N seconds */
@@ -71,6 +53,15 @@ export function getStrengthLabel(score: number): string {
   if (score >= 40) return 'Fair'
   if (score >= 20) return 'Weak'
   return 'Very Weak'
+}
+
+export function getDomainFromUrl(url: string): string {
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`)
+    return u.hostname.replace('www.', '')
+  } catch {
+    return url
+  }
 }
 
 export function getCategoryIcon(category: string): string {

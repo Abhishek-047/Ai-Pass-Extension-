@@ -129,7 +129,7 @@ chrome.runtime.onMessage.addListener(
   }
 )
 
-async function handleMessage(
+export async function handleMessage(
   message: ExtensionMessage,
   _sender: chrome.runtime.MessageSender
 ): Promise<unknown> {
@@ -161,17 +161,17 @@ async function handleMessage(
       // Security: validate payload is a non-empty string within expected key size
       // A 256-bit AES key in base64 is 44 chars; allow up to 512 for padding
       if (
-        base64Key &&
-        typeof base64Key === 'string' &&
-        base64Key.length > 0 &&
-        base64Key.length <= 512 &&
-        /^[A-Za-z0-9+/=]+$/.test(base64Key) // strict base64 character validation
+        !base64Key ||
+        typeof base64Key !== 'string' ||
+        base64Key.length === 0 ||
+        base64Key.length > 512 ||
+        !/^[A-Za-z0-9+/=]+$/.test(base64Key)
       ) {
-        await (chrome.storage.session as any).set({ session_key: base64Key })
-      } else if (base64Key) {
         console.warn('[VaultGuard] VAULT_UNLOCK rejected: invalid session key payload')
         return { error: 'Invalid session key format' }
       }
+      
+      await (chrome.storage.session as any).set({ session_key: base64Key })
       notifyAllContentScripts({ type: 'VAULT_UNLOCK' })
       return { success: true }
     }
@@ -185,6 +185,7 @@ async function handleMessage(
 
     // ── Credential Lookup for Autofill ────────────────────────────────────────
     case 'GET_CREDENTIALS_FOR_DOMAIN': {
+      performance.mark('autofill-start')
       const requestedDomain = message.payload as string
 
       // Security: validate domain payload
@@ -253,6 +254,10 @@ async function handleMessage(
           console.error('[VaultGuard] Decryption failed for item:', item.id, err)
         }
       }
+
+      performance.mark('autofill-end')
+      const measure = performance.measure('autofill-latency', 'autofill-start', 'autofill-end')
+      console.log(`[VaultGuard Performance] Autofill latency: ${measure.duration.toFixed(2)}ms`)
 
       return { credentials: matched, isLocked: false }
     }

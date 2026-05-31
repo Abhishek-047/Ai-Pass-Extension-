@@ -5,12 +5,33 @@ import { useVaultStore } from '@/vault'
 import { staggerContainer, staggerItem, glowPulse } from '@/animations/variants'
 
 export function UnlockPage() {
-  const { unlock, isLoading, failedUnlockAttempts, lockoutUntil } = useVaultStore()
+  const { unlock, unlockWithBiometric, isLoading, failedUnlockAttempts, lockoutUntil, settings, meta } = useVaultStore()
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [error, setError] = useState('')
   const [shaking, setShaking] = useState(false)
+  
+  // Auto-trigger biometric unlock if enabled
+  useEffect(() => {
+    if (settings?.biometricEnabled && meta?.biometric && !lockoutUntil) {
+      // Small delay to let UI mount
+      const t = setTimeout(() => {
+        handleBiometric()
+      }, 300)
+      return () => clearTimeout(t)
+    }
+  }, [settings?.biometricEnabled, meta?.biometric, lockoutUntil])
+
+  const handleBiometric = async () => {
+    setIsUnlocking(true)
+    setError('')
+    const success = await unlockWithBiometric()
+    if (!success) {
+      setError('Biometric authentication cancelled or failed. Please use Master Password.')
+      setIsUnlocking(false)
+    }
+  }
   
   // Local state to track remaining lockout time dynamically
   const [secondsRemaining, setSecondsRemaining] = useState(0)
@@ -218,11 +239,23 @@ export function UnlockPage() {
             </motion.button>
           </form>
 
-          {/* Fingerprint indicator sheet */}
-          <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid rgba(139,92,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <Fingerprint size={16} color="#475569" />
-            <span style={{ fontSize: '12px', color: '#475569', fontWeight: '600' }}>Biometric Unlock (TouchID ready)</span>
-          </div>
+          {/* Real Biometric trigger button */}
+          {settings?.biometricEnabled && meta?.biometric && (
+            <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid rgba(139,92,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={handleBiometric}
+                className="btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '10px', fontSize: '13px' }}
+                disabled={isLockedOut || isUnlocking}
+              >
+                <Fingerprint size={16} color={isUnlocking ? '#475569' : '#a78bfa'} />
+                <span style={{ fontWeight: '600', color: isUnlocking ? '#475569' : '#f1f5f9' }}>
+                  {isUnlocking ? 'Authenticating...' : 'Unlock with Biometrics'}
+                </span>
+              </button>
+            </div>
+          )}
         </motion.div>
 
         {/* Cybernote footer */}

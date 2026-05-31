@@ -127,12 +127,42 @@ export function SettingsPage() {
           </div>
         </motion.div>
 
-        {/* Browser Integration Preferences */}
         <motion.div variants={staggerItem} className="glass-card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <h3 style={{ fontSize: '13.5px', fontWeight: '800', color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Outfit' }}>
             <Clipboard size={14} color="#22d3ee" />
             Integrations & UX
           </h3>
+
+          {/* Biometric Unlock Toggle */}
+          {settings.biometricSupported && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#f1f5f9' }}>Biometric Unlock</div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px', fontWeight: '500' }}>Use TouchID / Windows Hello to unlock.</div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (settings.biometricEnabled) {
+                      const { useVaultStore } = await import('@/vault')
+                      useVaultStore.getState().disableBiometric()
+                    } else {
+                      const { useVaultStore } = await import('@/vault')
+                      useVaultStore.getState().enrollBiometric()
+                    }
+                  }}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                >
+                  {settings.biometricEnabled ? (
+                    <ToggleRight size={36} color="#22d3ee" />
+                  ) : (
+                    <ToggleLeft size={36} color="#475569" />
+                  )}
+                </button>
+              </div>
+              <div className="divider" />
+            </>
+          )}
 
           {/* Autofill enabled toggle */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -264,7 +294,7 @@ export function SettingsPage() {
       {/* Footer Info Badge */}
       <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', color: '#475569' }}>
         <Info size={12} />
-        <span style={{ fontSize: '11.5px', fontWeight: '600' }}>VaultGuard v1.1.0 • Enterprise Core</span>
+        <span style={{ fontSize: '11.5px', fontWeight: '600' }}>VaultGuard v1.0.0</span>
       </div>
     </div>
   )
