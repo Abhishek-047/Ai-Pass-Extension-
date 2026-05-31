@@ -276,20 +276,24 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       await saveVaultMeta(meta)
       _sessionKey = key
 
-      // Persist session key so subsequent popup opens stay unlocked
-      try {
-        const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
-        const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
-        if (chrome.storage.session) {
-          await (chrome.storage.session as any).set({ session_key: base64Key })
-        }
-        await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
-      } catch (persistErr) {
-        console.warn('[VaultStore] Failed to persist session key after setup:', persistErr)
-      }
-
+      // Update UI state IMMEDIATELY — don't block on session persistence
       set({ isSetup: true, isLocked: false, meta, currentPage: 'dashboard', items: [] })
       get().addToast({ type: 'success', title: 'Vault created!', description: 'Your secure vault is ready.' })
+
+      // Persist session key so subsequent popup opens stay unlocked
+      void (async () => {
+        try {
+          const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
+          const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
+          if (chrome.storage.session) {
+            await (chrome.storage.session as any).set({ session_key: base64Key })
+          }
+          await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
+        } catch (persistErr) {
+          console.warn('[VaultStore] Failed to persist session key after setup:', persistErr)
+        }
+      })()
+
       return true
     } catch (err) {
       console.error('[VaultStore] Setup failed:', err)
