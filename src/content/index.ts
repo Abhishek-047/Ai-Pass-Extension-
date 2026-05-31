@@ -1,215 +1,474 @@
 /**
- * VaultGuard Content Script — Production-Grade Autofill Architecture
- * 
- * Responsibilities:
- * - Direct iframe protection and origin verification.
- * - Secure message passing with runtime origin validation.
- * - Visually stunning glassmorphic credentials bubble.
- * - Honeypot and fake/hidden form evasion.
- * - High-performance debounced MutationObserver.
+ * VaultGuard Content Script — Production Autofill Engine
+ *
+ * Features:
+ * - eTLD+1 domain matching
+ * - Cross-origin iframe protection
+ * - Honeypot / hidden field detection
+ * - React, Vue, Angular, Next.js compatible injection
+ * - SPA route change tracking
+ * - Debounced MutationObserver for dynamic forms
+ * - Autofill bubble with credential selection
+ * - Race condition safe: no duplicate injection
  */
 
 import type { AutofillCredential } from '@/types'
 
-// ─────────────────────────────────────────────
-// State
-// ─────────────────────────────────────────────
+// ─── State ─────────────────────────────────────────────────────────────────────
 
-let autofillPopup: HTMLElement | null = null
-let detectedFields: { email?: HTMLInputElement; password?: HTMLInputElement } = {}
-let currentHostname = window.location.hostname
-let currentDomain = getBaseDomain(currentHostname)
-let isVaultLocked = true
-let matchedCredentialsCount = 0
+let autofillBubble: HTMLElement | null = null
+let lastDetectedEmail: HTMLInputElement | null = null
+let lastDetectedPassword: HTMLInputElement | null = null
+let currentDomain = getBaseDomain(window.location.hostname)
+let isVaultLocked = true                // optimistic — updated async on init
+let focusListenersAttached = false      // prevent duplicate listeners
+let detectTimeout: ReturnType<typeof setTimeout> | null = null
+let lastFormSignature = ''              // prevent re-processing same DOM state
+let initialized = false
 
-// ─────────────────────────────────────────────
-// Security Helpers
-// ─────────────────────────────────────────────
+// ─── Domain Helpers ─────────────────────────────────────────────────────────────
 
-/**
- * Extracts eTLD+1 domain (e.g. app.twitter.com -> twitter.com)
- */
 function getBaseDomain(hostname: string): string {
-  const parts = hostname.toLowerCase().split('.')
-  if (parts.length <= 2) return hostname
-  
-  const last2 = parts[parts.length - 2]
-  const commonSecondLevelTlds = ['co', 'com', 'org', 'net', 'gov', 'edu', 'mil']
-  
-  if (commonSecondLevelTlds.includes(last2) && parts.length > 2) {
-    return parts.slice(parts.length - 3).join('.')
+  const parts = hostname.toLowerCase().replace(/^www\./, '').split('.')
+  if (parts.length <= 1) return hostname
+  // Handle common ccSLD patterns like co.uk, com.au, org.uk
+  const knownSLDs = new Set(['co', 'com', 'org', 'net', 'gov', 'edu', 'mil', 'ac'])
+  if (parts.length >= 3 && knownSLDs.has(parts[parts.length - 2])) {
+    return parts.slice(-3).join('.')
   }
-  return parts.slice(parts.length - 2).join('.')
+  return parts.slice(-2).join('.')
 }
 
-/**
- * Ensures script is not running in cross-origin or hidden iframe.
- */
-function isFrameSecurityPassed(): boolean {
+// ─── Security Guards ────────────────────────────────────────────────────────────
+
+function isInsideCrossOriginIframe(): boolean {
   try {
-    // If top window is not accessible or we are inside an iframe, verify origin matches top origin
-    if (window !== window.top) {
-      if (window.top?.location.origin !== window.location.origin) {
-        return false // Cross-origin iframe blocked
-      }
-    }
-    return true
+    if (window === window.top) return false
+    // Same-origin iframes are fine; cross-origin throws
+    void window.top?.location.href
+    return false
   } catch {
-    return false // Mismatch throws security exception, block
+    return true // cross-origin iframe — block
   }
 }
 
-/**
- * Check if the input field is visible and not a honeypot field.
- */
-function isFieldVisibleAndLegit(el: HTMLInputElement): boolean {
+function isFieldVisible(el: HTMLInputElement): boolean {
   const rect = el.getBoundingClientRect()
   const style = window.getComputedStyle(el)
-  
-  // Basic visibility check
-  const isVisible = (
-    rect.width > 2 &&
-    rect.height > 2 &&
-    style.display !== 'none' &&
-    style.visibility !== 'hidden' &&
-    parseFloat(style.opacity || '1') > 0.1
-  )
-  if (!isVisible) return false
 
-  // Honeypot check: fields positioned off-screen or having hidden styling
-  const isOffscreen = (
-    rect.left < -100 || 
-    rect.top < -100 || 
-    rect.left > window.innerWidth + 100 || 
-    rect.top > window.innerHeight + 100
-  )
-  if (isOffscreen) return false
+  if (rect.width < 3 || rect.height < 3) return false
+  if (style.display === 'none') return false
+  if (style.visibility === 'hidden') return false
+  if (parseFloat(style.opacity ?? '1') < 0.05) return false
 
-  // Check common honeypot styling
-  const name = (el.name + el.id + el.className).toLowerCase()
-  const isHoneypotName = name.includes('honeypot') || name.includes('fake_') || name.includes('trap')
-  if (isHoneypotName) return false
+  // Off-screen honeypot detection
+  if (rect.left < -300 || rect.top < -300) return false
+  if (rect.left > window.innerWidth + 300) return false
+  if (rect.top > window.innerHeight + 300) return false
+
+  // Attribute-based honeypot detection
+  const attrs = [el.name, el.id, el.className].join(' ').toLowerCase()
+  if (/honeypot|hp_|trap|bot_|fake_|hidden_field|ohnohoney|gotcha/.test(attrs)) return false
 
   return true
 }
 
-// ─────────────────────────────────────────────
-// Message Listener from Background
-// ─────────────────────────────────────────────
+// ─── Field Detection ─────────────────────────────────────────────────────────────
+
+function scorePasswordField(el: HTMLInputElement): number {
+  if (!isFieldVisible(el)) return 0
+  const type = el.type.toLowerCase()
+  if (type === 'password') return 100
+  const attrs = [el.name, el.id, el.placeholder, el.autocomplete, el.getAttribute('aria-label') ?? ''].join(' ').toLowerCase()
+  if (attrs.includes('password') || attrs.includes('passcode') || attrs.includes('passwd')) return 80
+  return 0
+}
+
+function scoreUsernameField(el: HTMLInputElement, allVisibleInputs: HTMLInputElement[]): number {
+  if (!isFieldVisible(el)) return 0
+  const type = el.type.toLowerCase()
+
+  // Hard exclusions
+  if (['password', 'checkbox', 'radio', 'submit', 'button', 'file', 'image', 'range', 'color', 'hidden'].includes(type)) return 0
+
+  const attrs = [
+    el.name, el.id, el.placeholder,
+    el.autocomplete, el.getAttribute('aria-label') ?? '',
+    el.getAttribute('aria-describedby') ?? '',
+    el.getAttribute('data-testid') ?? '',
+  ].join(' ').toLowerCase()
+
+  // High confidence
+  if (type === 'email' || el.autocomplete === 'email' || el.autocomplete === 'username') return 100
+  if (/\b(email|e-mail|username|user.?name|login|user_id|userid|account)\b/.test(attrs)) return 90
+  if (/\b(phone|mobile|tel)\b/.test(attrs) && type === 'tel') return 60
+
+  // Label-based detection
+  const labelEl = el.labels?.[0] ?? document.querySelector(`label[for="${el.id}"]`)
+  if (labelEl) {
+    const labelText = labelEl.textContent?.toLowerCase() ?? ''
+    if (/email|username|user name|log.?in|sign.?in|account|identifier/.test(labelText)) return 85
+  }
+
+  // Sibling heuristic: text input immediately before a password field
+  if (type === 'text' || type === 'tel') {
+    const myIndex = allVisibleInputs.indexOf(el)
+    if (myIndex !== -1) {
+      for (let i = myIndex + 1; i < Math.min(myIndex + 4, allVisibleInputs.length); i++) {
+        if (allVisibleInputs[i].type === 'password' && isFieldVisible(allVisibleInputs[i])) {
+          return 70
+        }
+      }
+    }
+  }
+
+  return 0
+}
+
+function detectLoginFields(): { email: HTMLInputElement | null; password: HTMLInputElement | null } {
+  const allInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input'))
+  const visibleInputs = allInputs.filter(isFieldVisible)
+
+  // Find the best password field
+  let bestPassword: HTMLInputElement | null = null
+  let bestPasswordScore = 0
+  for (const el of visibleInputs) {
+    const s = scorePasswordField(el)
+    if (s > bestPasswordScore) { bestPasswordScore = s; bestPassword = el }
+  }
+  if (!bestPassword) return { email: null, password: null }
+
+  // Find the best username/email field
+  let bestEmail: HTMLInputElement | null = null
+  let bestEmailScore = 0
+  for (const el of visibleInputs) {
+    const s = scoreUsernameField(el, visibleInputs)
+    if (s > bestEmailScore) { bestEmailScore = s; bestEmail = el }
+  }
+
+  return { email: bestEmail, password: bestPassword }
+}
+
+// Generate a lightweight signature of the current form state to avoid redundant processing
+function formSignature(): string {
+  const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="password"], input[type="email"], input[type="text"]'))
+  return inputs.map(i => `${i.type}:${i.id}:${i.name}`).join('|')
+}
+
+// ─── Message Listener ────────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Validate sender is our extension background worker
-  if (sender.id && sender.id !== chrome.runtime.id) {
-    console.warn('[VaultGuard] Blocked message from untrusted sender ID:', sender.id)
-    return false
-  }
+  // Block messages from other extensions
+  if (sender.id && sender.id !== chrome.runtime.id) return false
 
   if (message.type === 'VAULT_LOCK') {
     isVaultLocked = true
-    removeAutofillPopup()
+    removeAutofillBubble()
+    sendResponse({ ok: true })
   } else if (message.type === 'VAULT_UNLOCK') {
     isVaultLocked = false
-    debouncedDetectLoginForm()
+    debouncedDetect()
+    sendResponse({ ok: true })
   } else if (message.type === 'AUTOFILL_CREDENTIALS') {
     performAutofill(message.payload as AutofillCredential)
-  }
-  
-  sendResponse({ ok: true })
-  return true
-})
-
-// ─────────────────────────────────────────────
-// Form Detection
-// ─────────────────────────────────────────────
-
-function isPasswordField(el: HTMLInputElement): boolean {
-  if (!isFieldVisibleAndLegit(el)) return false
-  const type = el.type.toLowerCase()
-  const attr = (el.name + el.id + el.placeholder + el.autocomplete + el.className).toLowerCase()
-  return type === 'password' || attr.includes('password') || attr.includes('passcode')
-}
-
-function isEmailUsernameField(el: HTMLInputElement, allInputs: HTMLInputElement[]): boolean {
-  if (!isFieldVisibleAndLegit(el)) return false
-  
-  const type = el.type.toLowerCase()
-  if (type === 'password' || type === 'checkbox' || type === 'radio' || type === 'submit' || type === 'button' || type === 'file') {
-    return false
-  }
-
-  const attr = (el.name + el.id + el.placeholder + el.autocomplete + el.getAttribute('aria-label') + el.className).toLowerCase()
-  
-  // Strong signals
-  if (type === 'email' || attr.includes('email') || attr.includes('username') || attr.includes('login') || attr.includes('user_id') || attr.includes('userid')) {
-    return true
-  }
-
-  // Weak signals
-  const isTextLike = type === 'text' || type === 'tel'
-  const hasWeakKeyword = attr.includes('user') || attr.includes('phone') || attr.includes('id') || attr.includes('acc')
-  
-  if (isTextLike && hasWeakKeyword) {
-    return true
-  }
-
-  // Sibling heuristic: If it is a text field and the very next input field is a password field in the DOM
-  if (isTextLike) {
-    const index = allInputs.indexOf(el)
-    if (index !== -1 && index < allInputs.length - 1) {
-      const nextEl = allInputs[index + 1]
-      if (nextEl && nextEl.type === 'password' && isFieldVisibleAndLegit(nextEl)) {
-        return true
-      }
-    }
+    sendResponse({ ok: true })
+  } else {
+    sendResponse({ ok: false })
   }
 
   return false
+})
+
+// ─── Autofill Bubble UI ──────────────────────────────────────────────────────────
+
+function removeAutofillBubble(): void {
+  if (autofillBubble) {
+    autofillBubble.style.opacity = '0'
+    autofillBubble.style.transform = 'translateY(12px) scale(0.96)'
+    const ref = autofillBubble
+    autofillBubble = null
+    setTimeout(() => ref.remove(), 250)
+  }
 }
 
-function detectLoginForm(): void {
-  if (!isFrameSecurityPassed()) return
+function showAutofillBubble(credentials: AutofillCredential[]): void {
+  if (autofillBubble) return          // already visible
+  if (credentials.length === 0) return
 
-  const inputs = Array.from(document.querySelectorAll('input')) as HTMLInputElement[]
-  const passwordFields = inputs.filter(isPasswordField)
-  const emailFields = inputs.filter((el) => isEmailUsernameField(el, inputs))
+  const primary = credentials[0]
+  const faviconUrl = primary.favicon || `https://www.google.com/s2/favicons?domain=${currentDomain}&sz=64`
 
-  if (passwordFields.length === 0) return
+  const bubble = document.createElement('div')
+  bubble.id = 'vaultguard-autofill-root'
+  bubble.setAttribute('data-vaultguard', 'true')
+  bubble.setAttribute('role', 'dialog')
+  bubble.setAttribute('aria-label', 'VaultGuard Autofill')
 
-  detectedFields = {
-    email: emailFields[0],
-    password: passwordFields[0],
+  // Multi-credential items HTML
+  const badgeHtml = credentials.length > 1
+    ? `<span class="vg-badge">${credentials.length} logins</span>`
+    : ''
+
+  bubble.innerHTML = `
+    <style>
+      #vaultguard-autofill-root {
+        all: initial;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 2147483647;
+        font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 13px;
+        line-height: 1.4;
+        color: #f1f5f9;
+      }
+      #vaultguard-autofill-root * {
+        box-sizing: border-box;
+      }
+      .vg-bubble {
+        display: flex;
+        flex-direction: column;
+        background: rgba(10, 10, 20, 0.88);
+        border: 1px solid rgba(139, 92, 246, 0.45);
+        border-radius: 16px;
+        padding: 12px 14px;
+        width: 300px;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.08);
+        backdrop-filter: blur(28px) saturate(180%);
+        animation: vg-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transition: opacity 0.2s, transform 0.2s;
+        user-select: none;
+      }
+      .vg-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .vg-favicon {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: rgba(124,58,237,0.18);
+        border: 1px solid rgba(139,92,246,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+      .vg-favicon img { width: 18px; height: 18px; object-fit: contain; }
+      .vg-title-row { flex: 1; min-width: 0; }
+      .vg-name {
+        font-weight: 800;
+        font-size: 13px;
+        color: #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .vg-badge {
+        background: rgba(139,92,246,0.2);
+        border: 1px solid rgba(139,92,246,0.35);
+        border-radius: 5px;
+        color: #c084fc;
+        font-size: 9px;
+        font-weight: 800;
+        padding: 1px 5px;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+      .vg-sub {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .vg-close {
+        width: 22px;
+        height: 22px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        color: #64748b;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        flex-shrink: 0;
+        transition: background 0.15s, color 0.15s;
+        padding: 0;
+      }
+      .vg-close:hover { background: rgba(255,255,255,0.08); color: #f1f5f9; }
+      .vg-credentials { display: flex; flex-direction: column; gap: 5px; }
+      .vg-cred-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(139,92,246,0.12);
+        background: rgba(124,58,237,0.05);
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .vg-cred-item:hover {
+        border-color: rgba(139,92,246,0.4);
+        background: rgba(124,58,237,0.12);
+        transform: translateY(-1px);
+      }
+      .vg-cred-user { font-weight: 700; font-size: 12px; color: #e2e8f0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .vg-cred-name { font-size: 10px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .vg-fill-icon { font-size: 11px; color: #7c3aed; flex-shrink: 0; }
+      .vg-powered {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 9.5px;
+        color: #334155;
+        letter-spacing: 0.3px;
+        font-weight: 600;
+      }
+      @keyframes vg-in {
+        from { opacity: 0; transform: translateY(20px) scale(0.95); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+    </style>
+    <div class="vg-bubble" id="vg-bubble-inner">
+      <div class="vg-header">
+        <div class="vg-favicon">
+          <img src="${faviconUrl}" alt="" onerror="this.style.display='none'" />
+        </div>
+        <div class="vg-title-row">
+          <div class="vg-name">VaultGuard ${badgeHtml}</div>
+          <div class="vg-sub">Select an account to fill</div>
+        </div>
+        <button class="vg-close" id="vg-close-btn" title="Dismiss">✕</button>
+      </div>
+      <div class="vg-credentials" id="vg-creds-list">
+        ${credentials.map((c, i) => `
+          <div class="vg-cred-item" data-idx="${i}" tabindex="0" role="button" aria-label="Autofill as ${c.username}">
+            <div style="flex:1;min-width:0">
+              <div class="vg-cred-user">${escapeHtml(c.username)}</div>
+              <div class="vg-cred-name">${escapeHtml(c.name)}</div>
+            </div>
+            <span class="vg-fill-icon">⌨</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="vg-powered">🛡 VaultGuard • AES-256-GCM • Zero Knowledge</div>
+    </div>
+  `
+
+  document.documentElement.appendChild(bubble)
+  autofillBubble = bubble
+
+  // Close button
+  bubble.querySelector('#vg-close-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation()
+    removeAutofillBubble()
+  })
+
+  // Credential items click
+  bubble.querySelectorAll('.vg-cred-item').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const idx = parseInt((el as HTMLElement).dataset.idx ?? '0', 10)
+      const cred = credentials[idx]
+      if (cred) performAutofill(cred)
+    })
+    el.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter' || (e as KeyboardEvent).key === ' ') {
+        e.preventDefault()
+        const idx = parseInt((el as HTMLElement).dataset.idx ?? '0', 10)
+        const cred = credentials[idx]
+        if (cred) performAutofill(cred)
+      }
+    })
+  })
+
+  // Auto-dismiss after 10s
+  setTimeout(removeAutofillBubble, 10000)
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+// ─── Autofill Execution ──────────────────────────────────────────────────────────
+
+/**
+ * Framework-safe value injection.
+ * Supports React 16+, Vue 3, Angular, Next.js, plain HTML.
+ */
+function setInputValue(input: HTMLInputElement, value: string): void {
+  // Focus first (required by some frameworks)
+  input.focus()
+
+  // Use native property descriptor to bypass React's synthetic event system
+  const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+  if (nativeSetter) {
+    nativeSetter.call(input, value)
+  } else {
+    input.value = value
   }
 
-  const showPopup = () => {
-    if (!isVaultLocked) {
-      showAutofillPopup()
-    }
+  // React 16: reset the internal value tracker so React sees the change
+  const tracker = (input as unknown as { _valueTracker?: { setValue(v: string): void } })._valueTracker
+  if (tracker) tracker.setValue('')
+
+  // Dispatch full suite of events required by React, Vue, Angular
+  input.dispatchEvent(new Event('focus', { bubbles: true }))
+  input.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: value }))
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  input.dispatchEvent(new Event('blur', { bubbles: true }))
+}
+
+function performAutofill(credential: AutofillCredential): void {
+  removeAutofillBubble()
+
+  // Re-detect in case DOM changed since last detection
+  const { email: emailField, password: passwordField } = detectLoginFields()
+  const finalEmail = emailField || lastDetectedEmail
+  const finalPassword = passwordField || lastDetectedPassword
+
+  let filled = false
+
+  if (finalEmail && credential.username) {
+    setInputValue(finalEmail, credential.username)
+    filled = true
+  }
+  if (finalPassword && credential.password) {
+    setInputValue(finalPassword, credential.password)
+    filled = true
   }
 
-  // Setup focus triggers
-  detectedFields.email?.addEventListener('focus', showPopup, { once: false })
-  detectedFields.password?.addEventListener('focus', showPopup, { once: false })
+  if (filled) {
+    // Notify background (no sensitive data)
+    chrome.runtime.sendMessage({
+      type: 'AUTOFILL_FILL',
+      payload: { id: credential.id, name: credential.name, website: credential.website }
+    }).catch(() => {/* background might be restarting */})
+  }
 }
 
-let detectTimeout: ReturnType<typeof setTimeout> | null = null
-function debouncedDetectLoginForm(): void {
-  if (detectTimeout) clearTimeout(detectTimeout)
-  detectTimeout = setTimeout(() => {
-    detectLoginForm()
-  }, 200)
-}
+// ─── Detection + Credential Fetch ────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────
-// Autofill Popup UI
-// ─────────────────────────────────────────────
+function triggerBubble(): void {
+  if (isVaultLocked) return
+  if (autofillBubble) return // already shown
 
-function showAutofillPopup(): void {
-  if (autofillPopup) return // Already active
-
-  // Origin protection
-  if (window.location.origin !== window.origin) return
-
-  // Query background for credentials matching domain
   chrome.runtime.sendMessage(
     { type: 'GET_CREDENTIALS_FOR_DOMAIN', payload: currentDomain },
     (response) => {
@@ -219,263 +478,113 @@ function showAutofillPopup(): void {
         return
       }
 
-      const credentials = response?.credentials || []
-      matchedCredentialsCount = credentials.length
+      const creds: AutofillCredential[] = response?.credentials ?? []
 
-      if (matchedCredentialsCount > 0) {
-        createAutofillBubble(credentials[0])
+      if (creds.length > 0) {
+        showAutofillBubble(creds)
       }
     }
   )
 }
 
-function createAutofillBubble(credential: AutofillCredential): void {
-  if (autofillPopup) return
-
-  const bubble = document.createElement('div')
-  bubble.id = 'vaultguard-autofill-bubble'
-  bubble.setAttribute('data-vaultguard', 'true')
-
-  const faviconUrl = credential.favicon || `https://www.google.com/s2/favicons?domain=${currentDomain}&sz=64`
-
-  bubble.innerHTML = `
-    <style>
-      #vaultguard-autofill-bubble {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        background: rgba(10, 10, 16, 0.85);
-        border: 1px solid rgba(139, 92, 246, 0.4);
-        border-radius: 14px;
-        padding: 12px 16px;
-        z-index: 2147483647;
-        font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        box-shadow: 
-          inset 0 1px 0 rgba(255, 255, 255, 0.1),
-          0 12px 40px rgba(124, 58, 237, 0.2), 
-          0 0 100px rgba(124, 58, 237, 0.05);
-        backdrop-filter: blur(24px) saturate(180%);
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-        animation: vg-slide-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-        max-width: 320px;
-        user-select: none;
-      }
-      #vaultguard-autofill-bubble:hover {
-        border-color: rgba(139, 92, 246, 0.8);
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 
-          inset 0 1px 0 rgba(255, 255, 255, 0.2),
-          0 16px 48px rgba(124, 58, 237, 0.3);
-      }
-      #vaultguard-autofill-bubble .vg-icon {
-        width: 32px;
-        height: 32px;
-        background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(79, 70, 229, 0.25));
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-      #vaultguard-autofill-bubble .vg-icon img {
-        width: 18px;
-        height: 18px;
-        border-radius: 4px;
-        object-fit: cover;
-      }
-      #vaultguard-autofill-bubble .vg-text {
-        flex: 1;
-        min-width: 0;
-      }
-      #vaultguard-autofill-bubble .vg-title {
-        color: #f1f5f9;
-        font-size: 13px;
-        font-weight: 700;
-        line-height: 1.2;
-        letter-spacing: -0.2px;
-      }
-      #vaultguard-autofill-bubble .vg-sub {
-        color: #94a3b8;
-        font-size: 11px;
-        line-height: 1.3;
-        margin-top: 2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      #vaultguard-autofill-bubble .vg-badge {
-        background: rgba(139, 92, 246, 0.2);
-        border: 1px solid rgba(139, 92, 246, 0.4);
-        border-radius: 6px;
-        color: #c084fc;
-        font-size: 10px;
-        font-weight: 800;
-        padding: 2px 6px;
-        margin-left: 6px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      #vaultguard-autofill-bubble .vg-close {
-        width: 22px;
-        height: 22px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #64748b;
-        font-size: 14px;
-        flex-shrink: 0;
-        border-radius: 6px;
-        transition: all 0.2s;
-      }
-      #vaultguard-autofill-bubble .vg-close:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #f1f5f9;
-      }
-      @keyframes vg-slide-in {
-        from { transform: translateY(30px) scale(0.95); opacity: 0; }
-        to { transform: translateY(0) scale(1); opacity: 1; }
-      }
-    </style>
-    <div class="vg-icon">
-      <img src="${faviconUrl}" alt="logo" onError="this.src='https://www.google.com/s2/favicons?domain=example.com'"/>
-    </div>
-    <div class="vg-text">
-      <div style="display: flex; align-items: center;">
-        <div class="vg-title">VaultGuard</div>
-        <span class="vg-badge">${matchedCredentialsCount} login${matchedCredentialsCount > 1 ? 's' : ''}</span>
-      </div>
-      <div class="vg-sub">Click to autofill: ${credential.username}</div>
-    </div>
-    <div class="vg-close" id="vg-close-btn">✕</div>
-  `
-
-  document.body.appendChild(bubble)
-  autofillPopup = bubble
-
-  // Close trigger
-  document.getElementById('vg-close-btn')?.addEventListener('click', (e) => {
-    e.stopPropagation()
-    removeAutofillPopup()
-  })
-
-  // Open extension overlay & perform autofill relay on bubble tap
-  bubble.addEventListener('click', () => {
-    performAutofill(credential)
-  })
-
-  // Auto disappear after 8 seconds
-  setTimeout(removeAutofillPopup, 8000)
+function debouncedDetect(): void {
+  if (detectTimeout) clearTimeout(detectTimeout)
+  detectTimeout = setTimeout(runDetection, 300)
 }
 
-function removeAutofillPopup(): void {
-  if (autofillPopup) {
-    autofillPopup.style.opacity = '0'
-    autofillPopup.style.transform = 'translateY(15px) scale(0.95)'
-    const popupRef = autofillPopup
-    autofillPopup = null
-    setTimeout(() => {
-      popupRef.remove()
-    }, 250)
+function runDetection(): void {
+  if (isInsideCrossOriginIframe()) return
+
+  const sig = formSignature()
+  if (sig === lastFormSignature && sig !== '') return // DOM unchanged
+  lastFormSignature = sig
+
+  const { email, password } = detectLoginFields()
+
+  if (!password) {
+    // No password field — remove bubble and detach listeners
+    if (autofillBubble) removeAutofillBubble()
+    focusListenersAttached = false
+    lastDetectedEmail = null
+    lastDetectedPassword = null
+    return
+  }
+
+  // Store detected fields
+  lastDetectedEmail = email
+  lastDetectedPassword = password
+
+  // Attach focus-triggered bubble (once per field set)
+  if (!focusListenersAttached) {
+    focusListenersAttached = true
+
+    const onFocus = () => triggerBubble()
+
+    email?.addEventListener('focus', onFocus)
+    password.addEventListener('focus', onFocus)
   }
 }
 
-// ─────────────────────────────────────────────
-// Autofill Execution
-// ─────────────────────────────────────────────
-
-function performAutofill(credential: AutofillCredential): void {
-  if (detectedFields.email && credential.username) {
-    setInputValue(detectedFields.email, credential.username)
-  }
-  if (detectedFields.password && credential.password) {
-    setInputValue(detectedFields.password, credential.password)
-  }
-  
-  // Security note: We notify background we are filling.
-  chrome.runtime.sendMessage({
-    type: 'AUTOFILL_FILL',
-    payload: {
-      id: credential.id,
-      name: credential.name,
-      username: credential.username,
-      website: credential.website
-    }
-  }).catch(() => {})
-  
-  removeAutofillPopup()
-}
-
-function setInputValue(input: HTMLInputElement, value: string): void {
-  const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype, 'value'
-  )?.set
-
-  if (nativeInputValueSetter) {
-    nativeInputValueSetter.call(input, value)
-  } else {
-    input.value = value
-  }
-
-  // React 16+ input value tracker bypass
-  const tracker = (input as any)._valueTracker
-  if (tracker) {
-    tracker.setValue('')
-  }
-
-  input.dispatchEvent(new Event('input', { bubbles: true }))
-  input.dispatchEvent(new Event('change', { bubbles: true }))
-  input.dispatchEvent(new Event('blur', { bubbles: true }))
-}
-
-// ─────────────────────────────────────────────
-// Initialization logic
-// ─────────────────────────────────────────────
+// ─── Initialization ──────────────────────────────────────────────────────────────
 
 function init(): void {
-  if (!isFrameSecurityPassed()) return
+  if (initialized) return
+  if (isInsideCrossOriginIframe()) return
+  initialized = true
 
-  // Query background for current lock status
+  // Query background for current vault lock state
   chrome.runtime.sendMessage({ type: 'GET_VAULT_STATE' }, (response) => {
-    if (chrome.runtime.lastError) return
+    if (chrome.runtime.lastError) {
+      isVaultLocked = true
+      return
+    }
     isVaultLocked = response?.isLocked ?? true
+    // Run first detection after we know lock state
+    runDetection()
   })
 
-  // Scan document instantly
-  detectLoginForm()
-
-  // Track dynamic changes (React / SPAs / Next.js routing)
+  // MutationObserver for dynamic forms (SPA, React rendering, lazy-loaded forms)
   const observer = new MutationObserver(() => {
-    debouncedDetectLoginForm()
+    focusListenersAttached = false // reset so re-attachment can happen
+    debouncedDetect()
   })
 
-  observer.observe(document.body, {
+  observer.observe(document.documentElement, {
     childList: true,
     subtree: true,
+    attributes: false,
+    characterData: false,
   })
 
-  // Route scanner for SPAs
-  let lastUrl = location.href
-  setInterval(() => {
-    if (location.href !== lastUrl) {
-      lastUrl = location.href
-      currentHostname = window.location.hostname
-      currentDomain = getBaseDomain(currentHostname)
-      detectedFields = {}
-      removeAutofillPopup()
-      setTimeout(detectLoginForm, 400)
+  // SPA route-change tracker via polling (covers history.pushState, replaceState, hash changes)
+  let lastHref = location.href
+  const routePoller = setInterval(() => {
+    if (location.href !== lastHref) {
+      lastHref = location.href
+      currentDomain = getBaseDomain(window.location.hostname)
+      // Reset state for new page
+      lastDetectedEmail = null
+      lastDetectedPassword = null
+      lastFormSignature = ''
+      focusListenersAttached = false
+      removeAutofillBubble()
+      // Give SPA time to render the new page's DOM
+      setTimeout(runDetection, 600)
     }
   }, 1000)
+
+  // Cleanup on unload
+  window.addEventListener('beforeunload', () => {
+    clearInterval(routePoller)
+    observer.disconnect()
+  })
 }
 
-// Security Check & Entry point execution
-if (isFrameSecurityPassed()) {
+// ─── Entry Point ─────────────────────────────────────────────────────────────────
+
+if (!isInsideCrossOriginIframe()) {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init)
+    document.addEventListener('DOMContentLoaded', init, { once: true })
   } else {
     init()
   }

@@ -216,24 +216,30 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     const meta = await loadVaultMeta()
     const settings = await loadSettings()
 
-    let sessionKey: CryptoKey | null = null
     let isLocked = true
     let currentPage: Page = meta ? 'unlock' : 'setup'
     let items: VaultItem[] = []
 
-    try {
-      const sessionResult = await (chrome.storage.session as any)?.get('session_key')
-      const base64Key = sessionResult?.session_key as string | undefined
-      if (base64Key && meta) {
-        const keyBytes = base64ToUint8Array(base64Key)
-        sessionKey = await importSessionKey(keyBytes)
-        _sessionKey = sessionKey
-        items = await loadVaultItems()
-        isLocked = false
-        currentPage = 'dashboard'
+    // Attempt to restore a persisted session key (survives popup close)
+    if (meta && chrome.storage.session) {
+      try {
+        const sessionResult = await (chrome.storage.session as any).get('session_key')
+        const base64Key = sessionResult?.session_key as string | undefined
+        if (base64Key) {
+          const keyBytes = base64ToUint8Array(base64Key)
+          const restoredKey = await importSessionKey(keyBytes)
+          _sessionKey = restoredKey
+          items = await loadVaultItems()
+          isLocked = false
+          currentPage = 'dashboard'
+        }
+      } catch (err) {
+        // Session key invalid or storage unavailable — require fresh unlock
+        console.warn('[VaultStore] Session restore failed, vault locked:', err)
+        _sessionKey = null
+        isLocked = true
+        currentPage = 'unlock'
       }
-    } catch (err) {
-      console.error('[VaultStore] Failed to restore session:', err)
     }
 
     set({
@@ -270,19 +276,23 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       await saveVaultMeta(meta)
       _sessionKey = key
 
-      // Export key raw bytes and save to session storage
-      const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
-      const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
-      if (chrome.storage.session) {
-        await chrome.storage.session.set({ session_key: base64Key })
+      // Persist session key so subsequent popup opens stay unlocked
+      try {
+        const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
+        const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
+        if (chrome.storage.session) {
+          await (chrome.storage.session as any).set({ session_key: base64Key })
+        }
+        await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
+      } catch (persistErr) {
+        console.warn('[VaultStore] Failed to persist session key after setup:', persistErr)
       }
-      await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
 
       set({ isSetup: true, isLocked: false, meta, currentPage: 'dashboard', items: [] })
       get().addToast({ type: 'success', title: 'Vault created!', description: 'Your secure vault is ready.' })
       return true
     } catch (err) {
-      console.error('Setup failed:', err)
+      console.error('[VaultStore] Setup failed:', err)
       return false
     }
   },
@@ -306,6 +316,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
 
     try {
       const key = await deriveKey(password, meta.salt, meta.kdf)
+
+      // Verify master password by decrypting the stored verifier blob
       const verified = await verifyMasterPassword(
         { ciphertext: meta.verifier, iv: meta.verifierIv },
         key
@@ -332,20 +344,26 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         return false
       }
 
-      // Success
+      // ✅ Correct password — reset counters
       _failedAttempts = 0
       _lockoutTime = null
       set({ failedUnlockAttempts: 0, lockoutUntil: null })
 
       _sessionKey = key
 
-      // Export key raw bytes and save to session storage
-      const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
-      const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
-      if (chrome.storage.session) {
-        await chrome.storage.session.set({ session_key: base64Key })
+      // Persist session key to chrome.storage.session so it survives popup close
+      try {
+        const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
+        const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
+        if (chrome.storage.session) {
+          await (chrome.storage.session as any).set({ session_key: base64Key })
+        }
+        // Inform background worker so it can serve autofill requests
+        await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
+      } catch (persistErr) {
+        // Non-fatal — session key is in memory, autofill may not persist across SW restarts
+        console.warn('[VaultStore] Failed to persist session key:', persistErr)
       }
-      await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
 
       const items = await loadVaultItems()
 
@@ -356,19 +374,21 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       get().computeHealthReport()
       return true
     } catch (err) {
-      console.error('Unlock failed:', err)
+      console.error('[VaultStore] Unlock error:', err)
       return false
     }
   },
 
   // ── Lock ──
   lock: () => {
-    // Explicitly null sessionKey
     _sessionKey = null
-    
+
+    // Clear session key from persistent session storage
     if (chrome.storage.session) {
-      chrome.storage.session.remove(['session_key']).catch(() => {})
+      (chrome.storage.session as any).remove(['session_key']).catch(() => {})
     }
+
+    // Notify background worker (which will notify all content scripts)
     chrome.runtime.sendMessage({ type: 'VAULT_LOCK' }).catch(() => {})
 
     if (_lockTimer) {
@@ -376,13 +396,14 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
       _lockTimer = null
     }
 
-    // Force clear the state items array to ensure no decrypted details persist in components
+    // Wipe decrypted state from memory
     set({
       isLocked: true,
       items: [],
       currentPage: 'unlock',
       healthReport: null,
       searchQuery: '',
+      activeCategory: null,
     })
   },
 
