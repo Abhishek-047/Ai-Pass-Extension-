@@ -344,34 +344,32 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
         return false
       }
 
-      // ✅ Correct password — reset counters
+      // ✅ Password correct — reset failure counters
       _failedAttempts = 0
       _lockoutTime = null
-      set({ failedUnlockAttempts: 0, lockoutUntil: null })
-
       _sessionKey = key
 
-      // Persist session key to chrome.storage.session so it survives popup close
-      try {
-        const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
-        const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
-        if (chrome.storage.session) {
-          await (chrome.storage.session as any).set({ session_key: base64Key })
-        }
-        // Inform background worker so it can serve autofill requests
-        await chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
-      } catch (persistErr) {
-        // Non-fatal — session key is in memory, autofill may not persist across SW restarts
-        console.warn('[VaultStore] Failed to persist session key:', persistErr)
-      }
-
+      // Load items and update UI state IMMEDIATELY — don't block on session persistence
       const items = await loadVaultItems()
-
-      // Start auto-lock timer
+      set({ isLocked: false, items, currentPage: 'dashboard', failedUnlockAttempts: 0, lockoutUntil: null })
       get().resetAutoLockTimer()
-
-      set({ isLocked: false, items, currentPage: 'dashboard' })
       get().computeHealthReport()
+
+      // Persist session key to survive popup close — fire and forget, non-blocking
+      void (async () => {
+        try {
+          const rawKeyBytes = await crypto.subtle.exportKey('raw', key)
+          const base64Key = arrayBufferToBase64(new Uint8Array(rawKeyBytes))
+          if (chrome.storage.session) {
+            await (chrome.storage.session as any).set({ session_key: base64Key })
+          }
+          // Notify background worker for autofill support
+          chrome.runtime.sendMessage({ type: 'VAULT_UNLOCK', payload: base64Key }).catch(() => {})
+        } catch (e) {
+          console.warn('[VaultStore] Session key persistence failed (non-fatal):', e)
+        }
+      })()
+
       return true
     } catch (err) {
       console.error('[VaultStore] Unlock error:', err)

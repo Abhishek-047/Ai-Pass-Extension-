@@ -51,6 +51,7 @@ export function Sidebar({ onAddItem }: SidebarProps) {
           paddingTop: '12px',
           paddingBottom: '12px',
           overflow: 'hidden',
+          clipPath: 'inset(0)',       // hard-clips any text that escapes overflow
           zIndex: 20,
           boxShadow: isExpanded ? '6px 0 28px rgba(0,0,0,0.6)' : '2px 0 6px rgba(0,0,0,0.2)',
         }}
@@ -107,7 +108,7 @@ export function Sidebar({ onAddItem }: SidebarProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '7px',
+              gap: isExpanded ? '7px' : '0',
               cursor: 'pointer',
               overflow: 'hidden',
               boxShadow: '0 3px 12px rgba(124,58,237,0.35)',
