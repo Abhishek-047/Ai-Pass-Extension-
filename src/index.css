@@ -87,10 +87,6 @@ body {
 }
 
 /* Global overflow containment */
-* {
-  max-width: 100%;
-}
-
 /* All pages inside the main area must not overflow */
 main, .page-content {
   overflow-x: hidden !important;
