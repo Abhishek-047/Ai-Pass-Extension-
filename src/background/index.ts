@@ -59,6 +59,23 @@ function domainsMatch(tabDomain: string, itemWebsite: string): boolean {
   return tabDomain === itemDomain
 }
 
+// ─── Rate Limiter (brute-force protection) ────────────────────────────────────────
+
+/** Track credential lookup requests per tab to prevent rapid polling / spoofing */
+const _credentialRequestTimestamps = new Map<number, number[]>()
+const CREDENTIAL_RATE_LIMIT = 10   // max requests
+const CREDENTIAL_RATE_WINDOW = 5000 // per 5 seconds per tab
+
+function isRateLimited(tabId: number): boolean {
+  const now = Date.now()
+  const history = (_credentialRequestTimestamps.get(tabId) ?? []).filter(
+    t => now - t < CREDENTIAL_RATE_WINDOW
+  )
+  history.push(now)
+  _credentialRequestTimestamps.set(tabId, history)
+  return history.length > CREDENTIAL_RATE_LIMIT
+}
+
 // ─── Session Key Helpers ─────────────────────────────────────────────────────────
 
 async function getSessionKey(): Promise<CryptoKey | null> {
@@ -66,6 +83,8 @@ async function getSessionKey(): Promise<CryptoKey | null> {
     const result = await (chrome.storage.session as any).get('session_key')
     const base64Key = result?.session_key as string | undefined
     if (!base64Key) return null
+    // Guard against oversized / malformed payloads
+    if (typeof base64Key !== 'string' || base64Key.length > 512) return null
     const keyBytes = base64ToUint8Array(base64Key)
     return importSessionKey(keyBytes)
   } catch {
@@ -114,6 +133,10 @@ async function handleMessage(
   message: ExtensionMessage,
   _sender: chrome.runtime.MessageSender
 ): Promise<unknown> {
+  // Security: validate message structure before processing
+  if (!message || typeof message !== 'object' || typeof message.type !== 'string') {
+    return { error: 'Invalid message structure' }
+  }
   const type = message.type as MessageType
 
   switch (type) {
@@ -135,8 +158,19 @@ async function handleMessage(
     // ── Vault Unlock — store session key ──────────────────────────────────────
     case 'VAULT_UNLOCK': {
       const base64Key = message.payload as string
-      if (base64Key && typeof base64Key === 'string') {
+      // Security: validate payload is a non-empty string within expected key size
+      // A 256-bit AES key in base64 is 44 chars; allow up to 512 for padding
+      if (
+        base64Key &&
+        typeof base64Key === 'string' &&
+        base64Key.length > 0 &&
+        base64Key.length <= 512 &&
+        /^[A-Za-z0-9+/=]+$/.test(base64Key) // strict base64 character validation
+      ) {
         await (chrome.storage.session as any).set({ session_key: base64Key })
+      } else if (base64Key) {
+        console.warn('[VaultGuard] VAULT_UNLOCK rejected: invalid session key payload')
+        return { error: 'Invalid session key format' }
       }
       notifyAllContentScripts({ type: 'VAULT_UNLOCK' })
       return { success: true }
@@ -152,8 +186,39 @@ async function handleMessage(
     // ── Credential Lookup for Autofill ────────────────────────────────────────
     case 'GET_CREDENTIALS_FOR_DOMAIN': {
       const requestedDomain = message.payload as string
-      if (!requestedDomain || typeof requestedDomain !== 'string') {
+
+      // Security: validate domain payload
+      if (
+        !requestedDomain ||
+        typeof requestedDomain !== 'string' ||
+        requestedDomain.length > 253 ||         // max valid domain length (RFC 1035)
+        /[^a-zA-Z0-9._\-]/.test(requestedDomain) // reject non-hostname characters
+      ) {
+        console.warn('[VaultGuard] GET_CREDENTIALS_FOR_DOMAIN rejected: invalid domain payload:', requestedDomain)
         return { credentials: [], isLocked: false }
+      }
+
+      // Security: rate limit per sender tab
+      const tabId = _sender?.tab?.id ?? -1
+      if (tabId > 0 && isRateLimited(tabId)) {
+        console.warn('[VaultGuard] GET_CREDENTIALS_FOR_DOMAIN rate limited for tab:', tabId)
+        return { credentials: [], isLocked: false, rateLimited: true }
+      }
+
+      // Security: verify the sender tab's actual URL matches the requested domain
+      if (_sender?.tab?.url) {
+        try {
+          const tabUrl = new URL(_sender.tab.url)
+          const tabDomain = getRegistrableDomain(tabUrl.hostname)
+          const claimedDomain = getRegistrableDomain(requestedDomain)
+          if (tabDomain !== claimedDomain) {
+            console.warn('[VaultGuard] Domain spoofing attempt blocked:', requestedDomain, '≠', tabDomain)
+            return { credentials: [], isLocked: false }
+          }
+        } catch {
+          // Can't parse tab URL — block
+          return { credentials: [], isLocked: false }
+        }
       }
 
       const sessionKey = await getSessionKey()
@@ -181,7 +246,8 @@ async function handleMessage(
             username: item.username,
             password,
             website: item.website,
-            favicon: `https://www.google.com/s2/favicons?domain=${requestedDomain}&sz=64`,
+            // Favicon URL uses sanitized domain, not raw requestedDomain
+            favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(requestedDomain)}&sz=64`,
           })
         } catch (err) {
           console.error('[VaultGuard] Decryption failed for item:', item.id, err)
