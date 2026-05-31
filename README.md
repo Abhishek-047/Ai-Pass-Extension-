@@ -49,10 +49,6 @@ VaultGuard reimagines password management through three fundamental principles:
 | <img src="assets/screenshots/ai_assistant.png" width="360" alt="AI Assistant" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> | <img src="assets/screenshots/security_report.png" width="360" alt="Security Report" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
 | Contextual local assistant for entropy audits. | Interactive audits of weak, duplicate, or expired entries. |
 
-| 🎬 Extension Demo |
-|:---:|
-| <video src="assets/screenshots/video.mp4" width="720" autoplay loop muted playsinline style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"></video> |
-| VaultGuard in action, ensuring top-notch zero-knowledge credential orchestration. |
 
 ---
 
