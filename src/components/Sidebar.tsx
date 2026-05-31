@@ -37,6 +37,7 @@ export function Sidebar({ onAddItem }: SidebarProps) {
       <motion.div
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
+        onPointerMove={() => setIsExpanded(true)}
         animate={{ width: isExpanded ? 160 : 56 }}
         transition={{ type: 'spring', stiffness: 380, damping: 36, mass: 0.7 }}
         style={{
