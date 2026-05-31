@@ -49,10 +49,10 @@ VaultGuard reimagines password management through three fundamental principles:
 | <img src="assets/screenshots/ai_assistant.png" width="360" alt="AI Assistant" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> | <img src="assets/screenshots/security_report.png" width="360" alt="Security Report" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
 | Contextual local assistant for entropy audits. | Interactive audits of weak, duplicate, or expired entries. |
 
-| ⚡ Secure Autofill Overlay |
+| 🎬 Extension Demo |
 |:---:|
-| <img src="assets/screenshots/autofill_popup.png" width="360" alt="Autofill Popup" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
-| Domain-matched context-menu credentials fill fields instantly. |
+| <img src="assets/screenshots/extension_demo.gif" width="720" alt="VaultGuard Demo" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
+| VaultGuard in action, ensuring top-notch zero-knowledge credential orchestration. |
 
 ---
 
