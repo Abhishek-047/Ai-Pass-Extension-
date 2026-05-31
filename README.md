@@ -51,7 +51,7 @@ VaultGuard reimagines password management through three fundamental principles:
 
 | 🎬 Extension Demo |
 |:---:|
-| <img src="assets/screenshots/extension_demo.gif" width="720" alt="VaultGuard Demo" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"/> |
+| <video src="assets/screenshots/video.mp4" width="720" autoplay loop muted playsinline style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"></video> |
 | VaultGuard in action, ensuring top-notch zero-knowledge credential orchestration. |
 
 ---
